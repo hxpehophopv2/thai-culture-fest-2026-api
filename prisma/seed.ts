@@ -24,6 +24,13 @@ async function main() {
 
   const activitiesData = [
     {
+      name: 'Gate Check-in',
+      nameTh: 'ลงทะเบียนเข้างาน',
+      zone: 'GATE',
+      sortOrder: 0,
+      sessions: [] // Gate ไม่มี session — ใช้แค่ booth code
+    },
+    {
       name: 'Fresh Flower Garland Weaving',
       nameTh: 'ร้อยมาลัยดอกไม้สด',
       zone: 'LAB',

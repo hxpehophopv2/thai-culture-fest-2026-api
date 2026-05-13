@@ -17,6 +17,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('logout-btn').addEventListener('click', handleLogout);
   document.getElementById('search-input').addEventListener('input', debounce(handleSearch, 400));
 
+  // Check for session from URL params (e.g. /staff/?session=xxx)
+  const urlParams = new URLSearchParams(window.location.search);
+  const sessionFromUrl = urlParams.get('session');
+  if (sessionFromUrl) {
+    STATE.staffSessionId = sessionFromUrl;
+    sessionStorage.setItem('rooted_staff_session', sessionFromUrl);
+    // Clean URL
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+
   // ถ้ามี session เก่า → ตรวจว่ายัง valid ไหม
   if (STATE.staffSessionId) {
     verifySession();
@@ -149,11 +159,14 @@ async function onScanSuccess(qrData) {
 // ─── Scan Result ─────────────────────────────────────────
 
 const RESULT_CONFIG = {
-  checked_in:      { icon: '✅', title: 'เข้าฐานสำเร็จ', color: '#22c55e' },
-  already_stamped: { icon: '⚠️', title: 'เข้าฐานนี้แล้ว', color: '#f59e0b' },
-  wrong_base:      { icon: '⚠️', title: 'ผิดฐาน', color: '#f59e0b' },
-  wrong_time:      { icon: '⏰', title: 'ผิดเวลา', color: '#f59e0b' },
-  no_booking:      { icon: '❌', title: 'ไม่มีการจอง', color: '#ef4444' }
+  checked_in:          { icon: '✅', title: 'เข้าฐานสำเร็จ', color: '#22c55e' },
+  already_stamped:     { icon: '⚠️', title: 'เข้าฐานนี้แล้ว', color: '#f59e0b' },
+  wrong_base:          { icon: '⚠️', title: 'ผิดฐาน', color: '#f59e0b' },
+  wrong_time:          { icon: '⏰', title: 'ผิดเวลา', color: '#f59e0b' },
+  no_booking:          { icon: '❌', title: 'ไม่มีการจอง', color: '#ef4444' },
+  gate_checked_in:     { icon: '✅', title: 'เข้างานสำเร็จ', color: '#22c55e' },
+  gate_already:        { icon: '⚠️', title: 'เข้างานแล้ว', color: '#f59e0b' },
+  not_gate_checked_in: { icon: '🚫', title: 'ยังไม่ได้สแกนเข้างาน', color: '#ef4444' }
 };
 
 function showResult(data) {
@@ -258,8 +271,22 @@ async function handleSearch() {
 }
 
 async function manualCheckin(type, id) {
-  // TODO: implement manual check-in via admin force endpoint
-  alert(`Manual check-in: ${type}/${id} — ใช้ admin dashboard แทน`);
+  // สร้าง QR data แบบ manual แล้วส่งไป scan
+  // ใช้ format: R:{type_code}:{id}:{hmac} — แต่ไม่มี hmac ฝั่ง client
+  // → เรียก scan ด้วย QR data ตรงๆ ไม่ได้ ต้องใช้ admin force checkin
+  try {
+    // ใช้ search result → สร้าง QR string ให้ server parse
+    // เนื่องจากไม่มี HMAC secret ฝั่ง client → ใช้ admin force endpoint แทน
+    const activityId = prompt('กรอก Activity ID ของฐานปัจจุบัน (หรือกด Cancel):', '');
+    if (!activityId) return;
+    
+    const { data } = await api('POST', '/api/checkin/scan', {
+      qrData: `MANUAL:${type}:${id}`  // server จะต้องรองรับ format นี้
+    });
+    showResult(data);
+  } catch (err) {
+    alert(`ไม่สามารถ check-in ได้: ${err.message}\n\nกรุณาใช้ Admin Dashboard แทน`);
+  }
 }
 
 // ─── Helpers ─────────────────────────────────────────────

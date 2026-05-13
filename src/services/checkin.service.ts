@@ -39,12 +39,15 @@ const TIME_BUFFER_MINUTES = 15;
 
 /** ผลลัพธ์การแสกน */
 export type ScanResultType =
-  | 'checked_in'      // ✅ ถูกฐาน ถูกเวลา
-  | 'already_stamped'  // ⚠️ เข้าฐานนี้แล้ว ไม่ต้องประทับซ้ำ
-  | 'wrong_base'       // ⚠️ ผิดฐาน
-  | 'wrong_time'       // ⚠️ ผิดเวลา (ถูกฐาน)
-  | 'no_booking'       // ❌ ไม่มีการจอง
-  | 'rejected';        // ❌ staff ไม่อนุญาต
+  | 'checked_in'           // ✅ ถูกฐาน ถูกเวลา
+  | 'already_stamped'      // ⚠️ เข้าฐานนี้แล้ว ไม่ต้องประทับซ้ำ
+  | 'wrong_base'           // ⚠️ ผิดฐาน
+  | 'wrong_time'           // ⚠️ ผิดเวลา (ถูกฐาน)
+  | 'no_booking'           // ❌ ไม่มีการจอง
+  | 'rejected'             // ❌ staff ไม่อนุญาต
+  | 'gate_checked_in'      // ✅ สแกนเข้างานสำเร็จ
+  | 'gate_already'         // ⚠️ เข้างานแล้ว
+  | 'not_gate_checked_in'; // ❌ ยังไม่ได้สแกนเข้างาน
 
 export interface ScanResult {
   /** ผลลัพธ์ */
@@ -269,7 +272,7 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
   // 3. ดึง staff session → ฐานที่ staff อยู่
   const staffSession = await prisma.staffSession.findUnique({
     where: { id: staffSessionId },
-    include: { activity: { select: { id: true, name: true, nameTh: true } } }
+    include: { activity: { select: { id: true, name: true, nameTh: true, zone: true } } }
   });
 
   if (!staffSession || staffSession.endedAt) {
@@ -277,7 +280,100 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
   }
 
   const actualActivityId = staffSession.activityId;
+  const isGateZone = staffSession.activity.zone === 'GATE';
   const now = new Date();
+
+  // ─── Gate Check-in Flow ─────────────────────────────
+  if (isGateZone) {
+    // Staff อยู่ที่ประตู → ทำ gate check-in
+    const personModel = parsed.type === 'participant' ? 'participant' : 'student';
+
+    // เช็คว่าเข้างานแล้วหรือยัง
+    const existing = parsed.type === 'participant'
+      ? await prisma.participant.findUnique({ where: { id: parsed.id }, select: { gateCheckedInAt: true } })
+      : await prisma.student.findUnique({ where: { id: parsed.id }, select: { gateCheckedInAt: true } });
+
+    if (existing?.gateCheckedInAt) {
+      // เข้างานแล้ว
+      const scanLog = await prisma.scanLog.create({
+        data: {
+          participantId: parsed.type === 'participant' ? parsed.id : undefined,
+          studentId: parsed.type === 'student' ? parsed.id : undefined,
+          actualActivityId,
+          result: 'gate_already',
+          staffSessionId,
+          staffId: staffSession.staffId
+        }
+      });
+
+      const stamps = await getStamps(parsed.type, parsed.id);
+
+      return {
+        result: 'gate_already',
+        scanLogId: scanLog.id,
+        person: { id: parsed.id, type: parsed.type, name: personInfo.name, org: personInfo.org },
+        message: `⚠️ เข้างานแล้วเมื่อ ${formatTime(existing.gateCheckedInAt)} — ไม่ต้องสแกนซ้ำ`,
+        stamps
+      };
+    }
+
+    // อัปเดต gateCheckedInAt
+    if (parsed.type === 'participant') {
+      await prisma.participant.update({ where: { id: parsed.id }, data: { gateCheckedInAt: now } });
+    } else {
+      await prisma.student.update({ where: { id: parsed.id }, data: { gateCheckedInAt: now } });
+    }
+
+    const scanLog = await prisma.scanLog.create({
+      data: {
+        participantId: parsed.type === 'participant' ? parsed.id : undefined,
+        studentId: parsed.type === 'student' ? parsed.id : undefined,
+        actualActivityId,
+        result: 'gate_checked_in',
+        staffSessionId,
+        staffId: staffSession.staffId
+      }
+    });
+
+    const stamps = await getStamps(parsed.type, parsed.id);
+
+    return {
+      result: 'gate_checked_in',
+      scanLogId: scanLog.id,
+      person: { id: parsed.id, type: parsed.type, name: personInfo.name, org: personInfo.org },
+      message: `✅ ลงทะเบียนเข้างานสำเร็จ — ยินดีต้อนรับ ${personInfo.name}`,
+      stamps
+    };
+  }
+
+  // ─── ฐานกิจกรรม: ต้องเช็ค gate ก่อน ─────────────────
+  const gateCheck = parsed.type === 'participant'
+    ? await prisma.participant.findUnique({ where: { id: parsed.id }, select: { gateCheckedInAt: true } })
+    : await prisma.student.findUnique({ where: { id: parsed.id }, select: { gateCheckedInAt: true } });
+
+  if (!gateCheck?.gateCheckedInAt) {
+    // ❌ ยังไม่ได้สแกนเข้างาน → Block
+    const scanLog = await prisma.scanLog.create({
+      data: {
+        participantId: parsed.type === 'participant' ? parsed.id : undefined,
+        studentId: parsed.type === 'student' ? parsed.id : undefined,
+        actualActivityId,
+        result: 'not_gate_checked_in',
+        staffSessionId,
+        staffId: staffSession.staffId
+      }
+    });
+
+    const stamps = await getStamps(parsed.type, parsed.id);
+
+    return {
+      result: 'not_gate_checked_in',
+      scanLogId: scanLog.id,
+      person: { id: parsed.id, type: parsed.type, name: personInfo.name, org: personInfo.org },
+      message: '❌ ยังไม่ได้สแกนเข้างาน — ต้องไปสแกนที่ประตูก่อน',
+      stamps
+    };
+  }
 
   // 4. ตรวจว่าคนนี้เคย checked_in ที่ฐานนี้แล้วหรือยัง
   const alreadyCheckedIn = await prisma.scanLog.findFirst({

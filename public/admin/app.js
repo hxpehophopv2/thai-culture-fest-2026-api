@@ -583,7 +583,7 @@ function fmtTime(dateStr) {
   return new Date(dateStr).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 function resultBadge(r) {
-  return { checked_in:'badge-success', already_stamped:'badge-warning', wrong_base:'badge-warning', wrong_time:'badge-warning', no_booking:'badge-danger', rejected:'badge-danger' }[r] || 'badge-muted';
+  return { checked_in:'badge-success', already_stamped:'badge-warning', wrong_base:'badge-warning', wrong_time:'badge-warning', no_booking:'badge-danger', rejected:'badge-danger', gate_checked_in:'badge-success', gate_already:'badge-warning', not_gate_checked_in:'badge-danger' }[r] || 'badge-muted';
 }
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
@@ -605,7 +605,7 @@ async function loadBoothCodes() {
     tbody.innerHTML = data.map(a => `
       <tr>
         <td><strong>${esc(a.nameTh)}</strong><br><small style="color:#71717a">${esc(a.name)}</small></td>
-        <td><span class="badge badge-${a.zone === 'LAB' ? 'info' : 'warning'}">${a.zone}</span></td>
+        <td><span class="badge badge-${a.zone === 'LAB' ? 'info' : a.zone === 'GATE' ? 'success' : 'warning'}">${a.zone}</span></td>
         <td>
           ${a.boothCode
             ? `<code style="font-size:1.1rem;font-weight:700;letter-spacing:2px;color:#22c55e;background:rgba(34,197,94,0.1);padding:4px 10px;border-radius:6px">${esc(a.boothCode)}</code>`

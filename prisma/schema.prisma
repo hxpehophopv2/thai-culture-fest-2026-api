@@ -15,7 +15,8 @@
 // ─────────────────────────────────────────────────────────────
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -171,6 +172,9 @@ model Participant {
   pdpaConsent     Boolean         @map("pdpa_consent")
   mediaConsent    Boolean         @map("media_consent")
 
+  // Gate Check-in
+  gateCheckedInAt DateTime?       @map("gate_checked_in_at")
+
   createdAt       DateTime        @default(now()) @map("created_at")
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
@@ -206,6 +210,10 @@ model Student {
   studentCode String?  @map("student_code")   // เลขประจำตัวนักเรียน
   classRoom   String?  @map("class_room")     // ห้อง เช่น "ป.4/2"
   schoolName  String?  @map("school_name")    // ชื่อโรงเรียน
+
+  // Gate Check-in
+  gateCheckedInAt DateTime? @map("gate_checked_in_at")
+
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
