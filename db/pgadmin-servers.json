@@ -1,0 +1,13 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "ROOTED Registration DB",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "rooted_registration",
+      "Username": "postgres",
+      "SSLMode": "prefer"
+    }
+  }
+}

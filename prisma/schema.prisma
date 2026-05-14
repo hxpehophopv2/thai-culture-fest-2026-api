@@ -1,5 +1,22 @@
+// ─────────────────────────────────────────────────────────────
+// ROOTED Registration System — Prisma Schema
+// ─────────────────────────────────────────────────────────────
+//
+// ตาราง 8 ตาราง:
+//   events         → ข้อมูลงาน (1 record = ROOTED 2026)
+//   activities     → ฐานกิจกรรม (6 ฐาน: 5 LAB + 1 STAGE)
+//   sessions       → รอบเวลา (21 รอบ, capacity 8-140)
+//   participants   → ผู้ลงทะเบียน (Case 1: บุคคลทั่วไป ลงผ่าน LIFF)
+//   students       → นักเรียน (Case 2: ครูสร้างให้ ไม่มี LINE)
+//   bookings       → การจอง (ผู้ลงทะเบียน/นักเรียน → รอบ)
+//   staff_sessions → เจ้าหน้าที่เลือกฐานก่อนแสกน
+//   scan_logs      → บันทึกทุกการแสกน QR (audit trail)
+//
+// ─────────────────────────────────────────────────────────────
+
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -7,15 +24,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  USER
-  TEACHER
-  STAFF
-  ADMIN
+// ─── Enums ──────────────────────────────────────────────
 
-  @@map("user_role")
+/// สัญชาติ — แบ่ง Thai/Non-Thai เพื่อแสดงฟอร์มต่างกัน
+/// ถ้า NON_THAI → ต้องกรอก country
+enum NationalityType {
+  THAI
+  NON_THAI
+
+  @@map("nationality_type")
 }
 
+/// ประเภทผู้เข้าร่วม — ใช้เก็บข้อมูลสถิติ
+/// ถ้า STUDENT → ต้องกรอก faculty, department
+enum ParticipantType {
+  STUDENT
+  TEACHER
+  STAFF
+  GENERAL_PUBLIC
+  GUEST
+
+  @@map("participant_type")
+}
+
+/// สถานะการจอง — CONFIRMED = ยืนยัน, CANCELLED = ยกเลิก
+/// เมื่อยกเลิก: bookedCount ของ session จะลดลง 1
 enum BookingStatus {
   CONFIRMED
   CANCELLED
@@ -23,39 +56,9 @@ enum BookingStatus {
   @@map("booking_status")
 }
 
-enum ScanResult {
-  CHECKED_IN
-  WRONG_BASE
-  WRONG_TIME
-  REJECTED
-  MANUAL_CHECKED_IN
-
-  @@map("scan_result")
-}
-
-enum QrSubjectType {
-  BOOKING
-  STUDENT
-
-  @@map("qr_subject_type")
-}
-
-model User {
-  id          String   @id @default(uuid()) @db.Uuid
-  lineUserId  String   @unique @map("line_user_id")
-  displayName String?  @map("display_name")
-  role        UserRole @default(USER)
-  schoolName  String?  @map("school_name")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-
-  students        Student[]
-  bookings        Booking[]
-  staffSessions   StaffSession[]
-  scanLogsAsStaff ScanLog[]      @relation("ScanLogStaff")
-
-  @@map("users")
-}
+// ─── Event ──────────────────────────────────────────────
+// งาน ROOTED 2026 — มี 1 record
+// ใช้เป็น parent ของ activities ทั้งหมด
 
 model Event {
   id        String   @id @default(uuid()) @db.Uuid
@@ -71,25 +74,47 @@ model Event {
   @@map("events")
 }
 
+// ─── Activity (ฐานกิจกรรม) ──────────────────────────────
+// 6 ฐาน: 5 LAB (workshop ทำมือ, cap 8-10) + 1 STAGE (เสวนา, cap 140)
+//
+// zone = "LAB" | "STAGE"
+//   LAB   → workshop ทำมือ (ร้อยมาลัย, สานพัด, ฯลฯ)
+//   STAGE → เสวนา + การแสดง (cap สูง)
+//
+// sortOrder = ลำดับแสดงใน UI (1-6)
+
 model Activity {
   id          String   @id @default(uuid()) @db.Uuid
   eventId     String   @map("event_id") @db.Uuid
-  name        String
-  baseNumber  Int      @map("base_number")
+  name        String   // English name
+  nameTh      String   @map("name_th") // Thai name (display in UI)
+  zone        String   // "LAB" or "STAGE"
   description String?
+  boothCode   String?  @unique @map("booth_code")  // รหัสฐาน เช่น "MAL-7X2K"
+  sortOrder   Int      @default(0) @map("sort_order")
   isActive    Boolean  @default(true) @map("is_active")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  event Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  slots Slot[]
+  event         Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  sessions      Session[]
+  staffSessions StaffSession[]
+  scanLogs      ScanLog[]
 
-  @@unique([eventId, baseNumber])
   @@index([eventId, isActive])
   @@map("activities")
 }
 
-model Slot {
+// ─── Session (รอบเวลา) ──────────────────────────────────
+// แต่ละ Activity มีหลายรอบ เช่น:
+//   ร้อยมาลัย → 4 รอบ (09:00, 10:30, 13:00, 14:30)
+//   พวงมโหตร → 6 รอบ (09:00-16:00 ทุกชั่วโมง)
+//
+// capacity    = จำนวนที่นั่งสูงสุดต่อรอบ
+// bookedCount = จำนวนที่จองแล้ว (นับรวมทั้ง participant + student)
+// remainingSeats = capacity - bookedCount (คำนวณฝั่ง API)
+
+model Session {
   id          String   @id @default(uuid()) @db.Uuid
   activityId  String   @map("activity_id") @db.Uuid
   startTime   DateTime @map("start_time")
@@ -105,99 +130,212 @@ model Slot {
 
   @@index([activityId, isVisible])
   @@index([startTime])
-  @@map("slots")
+  @@map("sessions")
 }
+
+// ─── Participant (ผู้ลงทะเบียน — Case 1) ──────────────
+// บุคคลทั่วไป ลงทะเบียนเองผ่าน LINE LIFF
+//
+// lineUserId = UNIQUE → 1 LINE account = 1 registration
+//
+// Conditional fields (validate ฝั่ง API):
+//   country         → required ถ้า nationalityType = NON_THAI
+//   faculty         → required ถ้า participantType = STUDENT
+//   department      → required ถ้า participantType = STUDENT
+//   facultyOther    → required ถ้า faculty = "OTHER"
+//   departmentOther → required ถ้า department = "OTHER"
+
+model Participant {
+  id              String          @id @default(uuid()) @db.Uuid
+  lineUserId      String          @unique @map("line_user_id")
+  displayName     String?         @map("display_name")
+
+  // Basic Information
+  nationalityType NationalityType @map("nationality_type")
+  firstName       String          @map("first_name")
+  lastName        String          @map("last_name")
+  nickname        String
+  dateOfBirth     DateTime        @map("date_of_birth") @db.Date
+  email           String
+  phoneNumber     String          @map("phone_number")
+  country         String?         // Required if NON_THAI
+
+  // Participant Information
+  participantType ParticipantType @map("participant_type")
+  organization    String
+  faculty         String?         // Required if STUDENT
+  facultyOther    String?         @map("faculty_other") // Required if faculty = "OTHER"
+  department      String?         // Required if STUDENT
+  departmentOther String?         @map("department_other") // Required if department = "OTHER"
+
+  // Consent
+  pdpaConsent     Boolean         @map("pdpa_consent")
+  mediaConsent    Boolean         @map("media_consent")
+
+  // Gate Check-in
+  gateCheckedInAt DateTime?       @map("gate_checked_in_at")
+
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  bookings Booking[]
+  students Student[]   // Students created by this participant (if teacher)
+  scanLogs ScanLog[]
+
+  @@index([participantType])
+  @@index([email])
+  @@map("participants")
+}
+
+// ─── Student (นักเรียน — Case 2) ─────────────────────────
+// เด็กประถม/มัธยม ที่ไม่มี LINE account
+// ครู (Participant ที่ participantType=TEACHER) สร้างให้
+//
+// Flow:
+//   1. ครูเข้า LIFF → ลงทะเบียนตัวเอง (เป็น Participant)
+//   2. ครูอัปโหลด Excel รายชื่อนักเรียน
+//   3. ระบบสร้าง Student records + Booking records
+//   4. ระบบสร้าง QR Code per student → ส่งให้ครูพิมพ์
+//   5. วันงาน: เด็กยื่น QR Card ให้ staff แสกน
+//
+// qrToken:
+//   JWT token ที่ฝังข้อมูล student + bookings ไว้ใน QR Code
+//   staff แสกน → decode JWT → เห็นข้อมูลทันทีไม่ต้อง query DB
 
 model Student {
   id          String   @id @default(uuid()) @db.Uuid
   teacherId   String   @map("teacher_id") @db.Uuid
   firstName   String   @map("first_name")
   lastName    String   @map("last_name")
-  studentCode String?  @map("student_code")
-  classRoom   String?  @map("class_room")
-  schoolName  String?  @map("school_name")
-  qrJti       String?  @unique @map("qr_jti")
+  studentCode String?  @map("student_code")   // เลขประจำตัวนักเรียน
+  classRoom   String?  @map("class_room")     // ห้อง เช่น "ป.4/2"
+  schoolName  String?  @map("school_name")    // ชื่อโรงเรียน
+
+  // Gate Check-in
+  gateCheckedInAt DateTime? @map("gate_checked_in_at")
+
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  teacher  User      @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  teacher  Participant @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   bookings Booking[]
   scanLogs ScanLog[]
 
   @@index([teacherId])
-  @@index([schoolName, classRoom])
-  @@index([firstName, lastName])
   @@map("students")
 }
 
+// ─── Booking (การจองรอบกิจกรรม) ─────────────────────────
+// ใช้ได้ทั้ง 2 Case:
+//   Case 1: participantId มีค่า, studentId = null
+//   Case 2: studentId มีค่า, participantId = null
+//
+// ⭐ ห้ามเป็น null ทั้งคู่ → validate ฝั่ง API
+//
+// bookedCount ของ Session จะเพิ่ม/ลดตาม:
+//   - สร้าง booking → bookedCount + 1
+//   - ยกเลิก booking → bookedCount - 1
+//   - นับรวมทั้ง participant + student bookings
+
 model Booking {
-  id              String        @id @default(uuid()) @db.Uuid
-  userId          String?       @map("user_id") @db.Uuid
-  studentId       String?       @map("student_id") @db.Uuid
-  parentBookingId String?       @map("parent_booking_id") @db.Uuid
-  slotId          String        @map("slot_id") @db.Uuid
-  status          BookingStatus @default(CONFIRMED)
-  qrJti           String?       @unique @map("qr_jti")
-  createdAt       DateTime      @default(now()) @map("created_at")
-  updatedAt       DateTime      @updatedAt @map("updated_at")
+  id            String        @id @default(uuid()) @db.Uuid
+  participantId String?       @map("participant_id") @db.Uuid   // Case 1: ผู้ลงทะเบียน
+  studentId     String?       @map("student_id") @db.Uuid       // Case 2: นักเรียน
+  sessionId     String        @map("session_id") @db.Uuid
+  status        BookingStatus @default(CONFIRMED)
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  user          User?     @relation(fields: [userId], references: [id], onDelete: Restrict)
-  student       Student?  @relation(fields: [studentId], references: [id], onDelete: Restrict)
-  slot          Slot      @relation(fields: [slotId], references: [id], onDelete: Restrict)
-  parentBooking Booking?  @relation("BookingChildren", fields: [parentBookingId], references: [id], onDelete: SetNull)
-  childBookings Booking[] @relation("BookingChildren")
-  scanLogs      ScanLog[]
+  participant Participant? @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  student     Student?     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  session     Session      @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  scanLogs    ScanLog[]
 
-  @@unique([userId, slotId])
-  @@unique([studentId, slotId])
-  @@index([slotId, status])
-  @@index([userId])
+  // 1 คน จอง 1 รอบซ้ำไม่ได้ (แยก constraint ตาม case)
+  // PostgreSQL: UNIQUE with NULL → multiple NULLs allowed ✓
+  @@unique([participantId, sessionId])
+  @@unique([studentId, sessionId])
+  @@index([sessionId, status])
+  @@index([participantId])
   @@index([studentId])
   @@map("bookings")
 }
 
-model StaffSession {
-  id        String    @id @default(uuid()) @db.Uuid
-  staffId   String    @map("staff_id") @db.Uuid
-  baseNumber Int      @map("base_number")
-  startedAt DateTime  @default(now()) @map("started_at")
-  endedAt   DateTime? @map("ended_at")
+// ─── StaffSession (เจ้าหน้าที่ประจำฐาน) ─────────────────
+// ก่อนเริ่มแสกน QR เจ้าหน้าที่ต้อง "เปิด session" เลือกว่า
+// ตัวเองประจำฐานไหน
+//
+// ทุก scan ในช่วงนี้ จะ tag ว่า actualActivityId = ฐานที่เลือก
+// ถ้าจะย้ายฐาน → ปิด session เดิม → เปิดใหม่
+//
+// staffId = LINE userId ของ staff (ไม่ได้ FK กับ participants
+//   เพราะ staff อาจไม่ได้ลงทะเบียนเป็น participant)
 
-  staff    User      @relation(fields: [staffId], references: [id], onDelete: Restrict)
+model StaffSession {
+  id         String    @id @default(uuid()) @db.Uuid
+  staffId    String    @map("staff_id")
+  activityId String    @map("activity_id") @db.Uuid
+  startedAt  DateTime  @default(now()) @map("started_at")
+  endedAt    DateTime? @map("ended_at")       // null = ยังแสกนอยู่
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  activity Activity   @relation(fields: [activityId], references: [id])
   scanLogs ScanLog[]
 
-  @@index([staffId, endedAt])
-  @@index([baseNumber, endedAt])
+  @@index([staffId])
   @@map("staff_sessions")
 }
 
+// ─── ScanLog (บันทึกการแสกน QR) ──────────────────────────
+// ⭐ หัวใจของระบบ check-in — บันทึกทุก scan ไม่ว่าผลจะเป็นอะไร
+//
+// ข้อมูลที่เก็บ:
+//   WHO   → participantId หรือ studentId (ใครถูกแสกน)
+//   WHERE → actualActivityId (ฐานที่ staff อยู่)
+//   VS    → expectedActivityId (ฐานที่ควรไปตาม booking)
+//   WHEN  → expectedSessionStart (เวลาที่ควรเข้า)
+//   WHAT  → result (ผลลัพธ์)
+//
+// result values:
+//   "checked_in"  → ✅ ถูกฐาน ถูกเวลา → ประทับ stamp
+//   "wrong_base"  → ⚠️ ผิดฐาน → staff ตัดสินใจ override หรือไม่
+//   "wrong_time"  → ⚠️ ผิดเวลา → staff ตัดสินใจ
+//   "no_booking"  → ❌ ไม่มีการจอง → staff ค้นมือ
+//   "rejected"    → ❌ staff ไม่อนุญาต
+
 model ScanLog {
-  id                String      @id @default(uuid()) @db.Uuid
-  scannedAt         DateTime    @default(now()) @map("scanned_at")
-  bookingId         String?     @map("booking_id") @db.Uuid
-  studentId         String?     @map("student_id") @db.Uuid
-  studentName       String?     @map("student_name")
-  actualBaseNumber  Int         @map("actual_base_number")
-  expectedBaseNumber Int?       @map("expected_base_number")
-  expectedSlotStart DateTime?   @map("expected_slot_start")
-  result            ScanResult
-  isOverride        Boolean     @default(false) @map("is_override")
-  isManual          Boolean     @default(false) @map("is_manual")
-  staffId           String      @map("staff_id") @db.Uuid
-  staffSessionId    String?     @map("staff_session_id") @db.Uuid
-  qrSubjectType     QrSubjectType? @map("qr_subject_type")
-  qrSubjectId       String?     @map("qr_subject_id") @db.Uuid
-  note              String?
+  id                   String    @id @default(uuid()) @db.Uuid
+  scannedAt            DateTime  @default(now()) @map("scanned_at")
 
-  booking      Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  student      Student?      @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  staff        User          @relation("ScanLogStaff", fields: [staffId], references: [id], onDelete: Restrict)
-  staffSession StaffSession? @relation(fields: [staffSessionId], references: [id], onDelete: SetNull)
+  // ใครถูกแสกน (Case 1 หรือ Case 2)
+  participantId        String?   @map("participant_id") @db.Uuid
+  studentId            String?   @map("student_id") @db.Uuid
+  bookingId            String?   @map("booking_id") @db.Uuid
 
-  @@index([actualBaseNumber, result])
+  // ฐานจริง vs ฐานที่ควรไป
+  actualActivityId     String    @map("actual_activity_id") @db.Uuid
+  expectedActivityId   String?   @map("expected_activity_id") @db.Uuid
+  expectedSessionStart DateTime? @map("expected_session_start")
+
+  // ผลลัพธ์
+  result               String    // checked_in | wrong_base | wrong_time | no_booking | rejected
+  isOverride           Boolean   @default(false) @map("is_override")
+
+  // staff ที่แสกน
+  staffSessionId       String    @map("staff_session_id") @db.Uuid
+  staffId              String    @map("staff_id")
+  note                 String?
+
+  // Relations
+  participant    Participant?  @relation(fields: [participantId], references: [id])
+  student        Student?      @relation(fields: [studentId], references: [id])
+  booking        Booking?      @relation(fields: [bookingId], references: [id])
+  staffSession   StaffSession  @relation(fields: [staffSessionId], references: [id])
+  actualActivity Activity      @relation(fields: [actualActivityId], references: [id])
+
+  @@index([participantId])
   @@index([studentId])
-  @@index([bookingId])
   @@index([staffSessionId])
-  @@index([scannedAt])
+  @@index([actualActivityId])
   @@map("scan_logs")
 }

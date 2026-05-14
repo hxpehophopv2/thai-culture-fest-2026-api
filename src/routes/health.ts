@@ -7,7 +7,8 @@ export async function healthRoutes(app: FastifyInstance) {
 
     return {
       ok: true,
-      service: 'rooted-registration-api',
+      service: 'thai-culture-fest-2026-api',
+      details: 'API is healthy',
       checkedAt: new Date().toISOString()
     };
   });

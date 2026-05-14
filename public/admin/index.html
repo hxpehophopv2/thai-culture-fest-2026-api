@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROOTED 2026 — Administration</title>
+  <link rel="stylesheet" href="/admin/style.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+</head>
+<body>
+
+  <!-- Login Screen (phpMyAdmin classic style) -->
+  <div id="login-screen" style="
+    position:fixed;inset:0;z-index:9999;
+    background:#d0d0d0;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Tahoma','Verdana','Geneva',sans-serif;font-size:12px;
+  ">
+    <div style="width:100%;max-width:780px">
+      <!-- Header bar -->
+      <div style="
+        background:linear-gradient(to bottom,#4a6fa5,#2d4f83);
+        color:#fff;padding:6px 12px;
+        font-size:14px;font-weight:bold;
+        border:1px solid #1a3560;
+        border-bottom:none;
+      ">
+        ROOTED 2026 — Administration Panel
+      </div>
+
+      <!-- Main body -->
+      <div style="
+        background:#f5f5f5;
+        border:1px solid #888;
+        padding:20px 24px;
+      ">
+        <table cellpadding="0" cellspacing="0" width="100%"><tr>
+          <!-- Left info panel -->
+          <td valign="top" style="width:55%;padding-right:20px;border-right:1px solid #ccc">
+            <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMjAiIGhlaWdodD0iNDAiPjx0ZXh0IHg9IjAiIHk9IjI4IiBmb250LWZhbWlseT0iVGFob21hIiBmb250LXNpemU9IjI0IiBmb250LXdlaWdodD0iYm9sZCIgZmlsbD0iIzMzNjZjYyI+Uk9PVEVE77iPPC90ZXh0Pjwvc3ZnPg==" alt="ROOTED" style="margin-bottom:12px">
+            <p style="color:#333;line-height:1.5;margin-bottom:10px">
+              Welcome to <b>ROOTED 2026</b> Event Registration Administration System.
+            </p>
+            <p style="color:#555;line-height:1.5;margin-bottom:10px">
+              This panel provides full control over participant registration, activity bookings,
+              check-in management, and real-time event monitoring.
+            </p>
+            <fieldset style="border:1px solid #aaa;padding:8px 10px;margin-top:10px">
+              <legend style="color:#336;font-weight:bold;padding:0 4px">System Information</legend>
+              <table cellpadding="2" cellspacing="0" style="font-size:11px;color:#444">
+                <tr><td>Server:</td><td style="padding-left:8px"><b>Fastify v5.x</b></td></tr>
+                <tr><td>Database:</td><td style="padding-left:8px"><b>PostgreSQL + Prisma</b></td></tr>
+                <tr><td>Version:</td><td style="padding-left:8px"><b>0.1.0</b></td></tr>
+                <tr><td>Auth:</td><td style="padding-left:8px"><b>LINE LIFF / Dev Mode</b></td></tr>
+              </table>
+            </fieldset>
+          </td>
+
+          <!-- Right login panel -->
+          <td valign="top" style="width:45%;padding-left:20px">
+            <fieldset style="border:2px groove #ccc;padding:14px 16px;background:#eee">
+              <legend style="color:#336;font-weight:bold;padding:0 6px">🔐 Log in</legend>
+
+              <table cellpadding="4" cellspacing="0" style="width:100%">
+                <tr>
+                  <td style="text-align:right;white-space:nowrap;color:#333"><label for="login-user">Username:</label></td>
+                  <td><input type="text" id="login-user" autofocus style="
+                    width:100%;padding:3px 5px;
+                    border:1px solid #7f9db9;
+                    font-family:Tahoma,Verdana,sans-serif;font-size:12px;
+                    background:#fff;
+                  "></td>
+                </tr>
+                <tr>
+                  <td style="text-align:right;white-space:nowrap;color:#333"><label for="login-pass">Password:</label></td>
+                  <td><input type="password" id="login-pass" onkeydown="if(event.key==='Enter')doLogin()" style="
+                    width:100%;padding:3px 5px;
+                    border:1px solid #7f9db9;
+                    font-family:Tahoma,Verdana,sans-serif;font-size:12px;
+                    background:#fff;
+                  "></td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>
+                    <div id="login-error" style="color:#cc0000;font-size:11px;font-weight:bold;margin:4px 0;display:none">
+                      ⚠️ Login failed: incorrect username or password.
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <td></td>
+                  <td>
+                    <input type="button" value="Go" onclick="doLogin()" style="
+                      padding:3px 20px;
+                      font-family:Tahoma,Verdana,sans-serif;font-size:12px;
+                      background:linear-gradient(to bottom,#f8f8f8,#ddd);
+                      border:1px outset #aaa;
+                      cursor:pointer;
+                      font-weight:bold;
+                    ">
+                  </td>
+                </tr>
+              </table>
+            </fieldset>
+
+            <div style="margin-top:12px;padding:8px 10px;background:#fff8e0;border:1px solid #e0c060;font-size:11px;color:#665500">
+              ⚠️ <b>Cookies must be enabled</b> for this application to function properly.
+            </div>
+          </td>
+        </tr></table>
+      </div>
+
+      <!-- Footer -->
+      <div style="
+        background:#eee;
+        border:1px solid #888;border-top:none;
+        padding:4px 12px;
+        font-size:10px;color:#666;
+        text-align:right;
+      ">
+        ROOTED Administration Panel v0.1.0 · © 2026 ROOTED Team
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h1>ROOTED 2026</h1>
+      <small>Administration Panel</small>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Overview</div>
+      <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <i data-lucide="layout-dashboard"></i> Dashboard
+      </a>
+
+      <div class="nav-section">Management</div>
+      <a class="nav-item" data-page="participants" onclick="navigate('participants')">
+        <i data-lucide="users"></i> Participants
+      </a>
+      <a class="nav-item" data-page="bookings" onclick="navigate('bookings')">
+        <i data-lucide="calendar-check"></i> Bookings
+      </a>
+      <a class="nav-item" data-page="checkin" onclick="navigate('checkin')">
+        <i data-lucide="scan-line"></i> Check-in
+      </a>
+
+      <div class="nav-section">Operations</div>
+      <a class="nav-item" data-page="live" onclick="navigate('live')">
+        <i data-lucide="radio"></i> Live Status
+      </a>
+      <a class="nav-item" data-page="sessions" onclick="navigate('sessions')">
+        <i data-lucide="settings"></i> Sessions
+      </a>
+      <a class="nav-item" data-page="boothcodes" onclick="navigate('boothcodes')">
+        <i data-lucide="key-round"></i> Booth Codes
+      </a>
+      <a class="nav-item" data-page="export" onclick="navigate('export')">
+        <i data-lucide="download"></i> Export Data
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main" id="main">
+
+    <!-- Dashboard Page -->
+    <div id="page-dashboard" class="page">
+      <div class="page-header">
+        <div>
+          <h2>Dashboard</h2>
+          <div class="subtitle">ROOTED 2026 Registration System Overview</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadDashboard()"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i> Refresh</button>
+      </div>
+      <div class="stats-grid" id="dashboard-stats"></div>
+      <div class="stats-grid" id="dashboard-secondary" style="grid-template-columns:repeat(2,1fr)"></div>
+      <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:16px">
+        <div class="panel">
+          <div class="panel-header"><h3>Activity Capacity</h3></div>
+          <div class="panel-body" style="height:280px"><canvas id="chart-capacity"></canvas></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header"><h3>Attendance</h3></div>
+          <div class="panel-body" style="height:280px"><canvas id="chart-attendance"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Participants Page -->
+    <div id="page-participants" class="page hidden">
+      <div class="page-header">
+        <div>
+          <h2>Participant Management</h2>
+          <div class="subtitle">Search, edit information, and register walk-ins</div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="openWalkinModal()"><i data-lucide="user-plus" style="width:14px;height:14px"></i> Walk-in Registration</button>
+      </div>
+      <div class="panel">
+        <div class="panel-header">
+          <div class="search-bar">
+            <span class="search-icon"><i data-lucide="search" style="width:16px;height:16px"></i></span>
+            <input type="search" id="participant-search" placeholder="Search by name or email..." oninput="debounceSearch()">
+          </div>
+        </div>
+        <div class="panel-body table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Nickname</th><th>Phone</th><th>Type</th><th>Activities</th><th>Actions</th></tr></thead>
+            <tbody id="participants-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 mt-2" id="participants-pagination"></div>
+    </div>
+
+    <!-- Bookings Page -->
+    <div id="page-bookings" class="page hidden">
+      <div class="page-header">
+        <div>
+          <h2>Booking Management</h2>
+          <div class="subtitle">Create, move, or cancel bookings</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-primary btn-sm" onclick="openCreateBookingModal()"><i data-lucide="plus" style="width:14px;height:14px"></i> Create</button>
+          <button class="btn btn-warning btn-sm" onclick="openForceBookingModal()"><i data-lucide="zap" style="width:14px;height:14px"></i> Force</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h3>Lookup Bookings</h3></div>
+        <div class="panel-body">
+          <div class="form-group"><label>Participant ID</label><input type="text" id="booking-participant-id" placeholder="Enter participant UUID"></div>
+          <button class="btn btn-outline btn-sm" onclick="searchBookings()"><i data-lucide="search" style="width:14px;height:14px"></i> Search</button>
+          <div class="table-wrap mt-3">
+            <table>
+              <thead><tr><th>Booking ID</th><th>Activity</th><th>Time</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="bookings-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Check-in Page -->
+    <div id="page-checkin" class="page hidden">
+      <div class="page-header">
+        <div>
+          <h2>Check-in Management</h2>
+          <div class="subtitle">Force stamp, remove erroneous stamps, view history</div>
+        </div>
+        <button class="btn btn-success btn-sm" onclick="openForceCheckinModal()"><i data-lucide="zap" style="width:14px;height:14px"></i> Force Check-in</button>
+      </div>
+      <div class="panel">
+        <div class="panel-header"><h3>Scan History Lookup</h3></div>
+        <div class="panel-body">
+          <div class="flex gap-2 mb-2">
+            <select id="checkin-type" style="max-width:160px"><option value="participant">Participant</option><option value="student">Student</option></select>
+            <input type="text" id="checkin-person-id" placeholder="Enter person UUID" style="flex:1">
+            <button class="btn btn-outline btn-sm" onclick="loadCheckinHistory()"><i data-lucide="search" style="width:14px;height:14px"></i> Search</button>
+          </div>
+          <div class="table-wrap mt-3">
+            <table>
+              <thead><tr><th>Time</th><th>Activity</th><th>Result</th><th>Override</th><th>Staff</th><th>Note</th><th>Actions</th></tr></thead>
+              <tbody id="checkin-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Status Page -->
+    <div id="page-live" class="page hidden">
+      <div class="page-header">
+        <div>
+          <h2>Live Activity Status</h2>
+          <div class="subtitle">Real-time capacity and check-in overview for all stations</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadLive()"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i> Refresh</button>
+      </div>
+      <div class="activity-grid" id="live-grid"></div>
+    </div>
+
+    <!-- Sessions Page -->
+    <div id="page-sessions" class="page hidden">
+      <div class="page-header">
+        <div>
+          <h2>Session Configuration</h2>
+          <div class="subtitle">Adjust capacity and visibility of sessions</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-body">
+          <div class="form-group"><label>Session ID</label><input type="text" id="session-id" placeholder="Enter session UUID"></div>
+          <div class="flex gap-2">
+            <div class="form-group" style="flex:1"><label>New Capacity</label><input type="number" id="session-capacity" placeholder="e.g. 40"></div>
+            <div class="form-group" style="flex:1"><label>Visibility</label>
+              <select id="session-visible"><option value="">No change</option><option value="true">Visible</option><option value="false">Hidden</option></select>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="updateSession()"><i data-lucide="save" style="width:14px;height:14px"></i> Update Session</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Booth Codes Page -->
+    <div id="page-boothcodes" class="page hidden">
+      <div class="page-header">
+        <div>
+          <h2>Booth Codes</h2>
+          <div class="subtitle">Generate and manage staff login codes for each activity booth</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="loadBoothCodes()"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i> Refresh</button>
+      </div>
+      <div class="panel">
+        <div class="panel-body table-wrap">
+          <table>
+            <thead><tr><th>Activity</th><th>Zone</th><th>Booth Code</th><th>Actions</th></tr></thead>
+            <tbody id="boothcodes-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel mt-3" style="padding:16px">
+        <p style="color:#a1a1aa;font-size:0.85rem">💡 Staff เปิด <a href="/staff/" target="_blank" style="color:#3b82f6">/staff/</a> แล้วใส่รหัสฐานเพื่อเข้าสู่หน้า Scanner</p>
+      </div>
+    </div>
+
+    <!-- Export Page -->
+    <div id="page-export" class="page hidden">
+      <div class="page-header">
+        <div>
+          <h2>Export Data</h2>
+          <div class="subtitle">Download data as CSV files</div>
+        </div>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card accent" style="cursor:pointer" onclick="downloadCsv('participants')">
+          <div class="label">Participants</div>
+          <div class="value" style="font-size:1.2rem"><i data-lucide="download" style="width:20px;height:20px;vertical-align:middle"></i> Download CSV</div>
+          <div class="sub">All registered participants</div>
+        </div>
+        <div class="stat-card info" style="cursor:pointer" onclick="downloadCsv('scanlogs')">
+          <div class="label">Scan Logs</div>
+          <div class="value" style="font-size:1.2rem"><i data-lucide="download" style="width:20px;height:20px;vertical-align:middle"></i> Download CSV</div>
+          <div class="sub">Complete scan history</div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 id="modal-title">Modal</h3>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toast-container"></div>
+  <script src="/admin/app.js"></script>
+</body>
+</html>
