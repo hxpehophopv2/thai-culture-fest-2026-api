@@ -44,8 +44,8 @@ export const registrationSchema = z.object({
     errorMap: () => ({ message: 'Media consent is required' })
   }),
 
-  // Activity Sessions (array of session IDs)
-  selectedSessionIds: z.array(z.string().uuid()).min(1, 'At least one session must be selected')
+  // Activity Sessions (optional — participant can register without booking any activity)
+  selectedSessionIds: z.array(z.string().uuid()).default([])
 
 }).superRefine((data, ctx) => {
   // Conditional: country required if NON_THAI

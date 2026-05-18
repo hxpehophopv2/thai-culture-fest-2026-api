@@ -14,6 +14,7 @@
  */
 
 import { prisma } from '../lib/prisma.js';
+import { generateUniqueShortCode } from '../lib/shortCode.js';
 import ExcelJS from 'exceljs';
 import type { Readable } from 'stream';
 
@@ -137,6 +138,7 @@ export async function createStudents(
   // สร้าง students ทีละคน (เพราะต้อง return IDs)
   const created = [];
   for (const s of students) {
+    const shortCode = await generateUniqueShortCode();
     const student = await prisma.student.create({
       data: {
         teacherId,
@@ -144,7 +146,8 @@ export async function createStudents(
         lastName: s.lastName,
         studentCode: s.studentCode ?? null,
         classRoom: s.classRoom ?? null,
-        schoolName: s.schoolName ?? null
+        schoolName: s.schoolName ?? null,
+        shortCode
       }
     });
     created.push(student);

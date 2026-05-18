@@ -35,6 +35,9 @@ import { parseQrData } from './qr.service.js';
 /** Buffer time สำหรับ check-in (± นาที) */
 const TIME_BUFFER_MINUTES = 15;
 
+/** Short code pattern: 5 ตัวอักษร A-Z + 2-9 (ไม่มี 0,O,1,I,L) */
+const SHORT_CODE_PATTERN = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{5,6}$/;
+
 // ─── Types ───────────────────────────────────────────────
 
 /** ผลลัพธ์การแสกน */
@@ -154,6 +157,36 @@ async function getPersonInfo(type: 'participant' | 'student', personId: string) 
   }
 }
 
+// ─── Short Code Resolution ──────────────────────────────
+
+/**
+ * ค้นหาคนจาก short code 5 ตัว (ใช้แทนการกรอก QR data ยาวๆ)
+ * ค้นทั้ง participants และ students
+ */
+async function resolveShortCode(code: string): Promise<{ type: 'participant' | 'student'; id: string } | null> {
+  // ค้นใน participants ก่อน
+  const participant = await prisma.participant.findUnique({
+    where: { shortCode: code },
+    select: { id: true }
+  });
+
+  if (participant) {
+    return { type: 'participant', id: participant.id };
+  }
+
+  // ค้นใน students
+  const student = await prisma.student.findUnique({
+    where: { shortCode: code },
+    select: { id: true }
+  });
+
+  if (student) {
+    return { type: 'student', id: student.id };
+  }
+
+  return null;
+}
+
 // ─── Staff Session Management ────────────────────────────
 
 /**
@@ -255,12 +288,25 @@ export async function getActiveStaffSession(staffId: string) {
  * @param staffSessionId - UUID ของ active staff session
  */
 export async function processScan(qrData: string, staffSessionId: string): Promise<ScanResult> {
-  // 1. Parse & verify QR data
+  // 1. Parse & verify QR data — or resolve short code
   let parsed: { type: 'participant' | 'student'; id: string };
-  try {
-    parsed = parseQrData(qrData);
-  } catch (error) {
-    throw new CheckinError('INVALID_QR', (error as Error).message);
+  
+  const trimmedInput = qrData.trim().toUpperCase();
+  
+  if (SHORT_CODE_PATTERN.test(trimmedInput)) {
+    // Input looks like a short code → resolve from DB
+    const resolved = await resolveShortCode(trimmedInput);
+    if (!resolved) {
+      throw new CheckinError('INVALID_CODE', `ไม่พบรหัส "${trimmedInput}" ในระบบ`);
+    }
+    parsed = resolved;
+  } else {
+    // Try parsing as QR data
+    try {
+      parsed = parseQrData(qrData);
+    } catch (error) {
+      throw new CheckinError('INVALID_QR', (error as Error).message);
+    }
   }
 
   // 2. ดึงข้อมูลคนจาก DB

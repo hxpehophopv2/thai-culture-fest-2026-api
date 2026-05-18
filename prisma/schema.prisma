@@ -172,6 +172,9 @@ model Participant {
   pdpaConsent     Boolean         @map("pdpa_consent")
   mediaConsent    Boolean         @map("media_consent")
 
+  // Short Code สำหรับ manual check-in (5 ตัวอักษร เช่น "A3K9F")
+  shortCode       String?         @unique @map("short_code")
+
   // Gate Check-in
   gateCheckedInAt DateTime?       @map("gate_checked_in_at")
 
@@ -210,6 +213,9 @@ model Student {
   studentCode String?  @map("student_code")   // เลขประจำตัวนักเรียน
   classRoom   String?  @map("class_room")     // ห้อง เช่น "ป.4/2"
   schoolName  String?  @map("school_name")    // ชื่อโรงเรียน
+
+  // Short Code สำหรับ manual check-in (5 ตัวอักษร เช่น "B7X2P")
+  shortCode   String?  @unique @map("short_code")
 
   // Gate Check-in
   gateCheckedInAt DateTime? @map("gate_checked_in_at")

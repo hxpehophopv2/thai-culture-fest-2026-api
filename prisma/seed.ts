@@ -27,13 +27,15 @@ async function main() {
       name: 'Gate Check-in',
       nameTh: 'ลงทะเบียนเข้างาน',
       zone: 'GATE',
+      description: null,
       sortOrder: 0,
       sessions: [] // Gate ไม่มี session — ใช้แค่ booth code
     },
     {
-      name: 'Fresh Flower Garland Weaving',
+      name: 'Hand Garland Workshop',
       nameTh: 'ร้อยมาลัยดอกไม้สด',
       zone: 'LAB',
+      description: 'Discover the elegance of traditional Thai flower garlands through a fun and creative hands-on experience. Learn basic garland-making techniques, explore the cultural meaning behind Thai floral crafts, and create your own beautiful handmade garland to take home.',
       sortOrder: 1,
       sessions: [
         { start: '09:00', end: '10:30', capacity: 8 },
@@ -43,9 +45,10 @@ async function main() {
       ]
     },
     {
-      name: 'Thai Hanging Ornament "Puang Mahot"',
+      name: 'Phuang Mahot Workshop',
       nameTh: 'ประดิษฐ์เครื่องแขวนไทย \'พวงมโหตร\'',
       zone: 'LAB',
+      description: 'Discover the beauty of "Phuang Mahot", a traditional Thai hanging decoration commonly seen at temple fairs, religious ceremonies, and auspicious events. Participants will learn about its cultural significance and experience creating colorful paper decorations inspired by traditional Thai craftsmanship.',
       sortOrder: 2,
       sessions: [
         { start: '09:00', end: '10:00', capacity: 8 },
@@ -57,9 +60,10 @@ async function main() {
       ]
     },
     {
-      name: 'Bamboo Fan Weaving',
+      name: 'Thai Bamboo Hand Fans Workshop',
       nameTh: 'สานพัดไม้ไผ่',
       zone: 'LAB',
+      description: 'Create your own traditional Thai bamboo hand fan and discover the charm of Thai handmade craftsmanship. Explore beautiful Thai-inspired patterns, learn simple crafting techniques, and enjoy decorating a lightweight eco-friendly souvenir that is both stylish and practical.',
       sortOrder: 3,
       sessions: [
         { start: '09:00', end: '10:00', capacity: 8 },
@@ -71,9 +75,10 @@ async function main() {
       ]
     },
     {
-      name: 'Thai Accessory Crafting',
-      nameTh: 'ประดิษฐ์เครื่องประดับไทย',
+      name: 'Thai Dance Ornament Crafting Workshop',
+      nameTh: 'ประดิษฐ์เครื่องประดับนาฏศิลป์ไทย',
       zone: 'LAB',
+      description: 'Learn how to craft ornaments inspired by Thai classical dance. Create handmade pieces that reflect the elegance, delicacy, and cultural identity of Thai performing arts.',
       sortOrder: 4,
       sessions: [
         { start: '09:00', end: '12:00', capacity: 10 },
@@ -81,9 +86,10 @@ async function main() {
       ]
     },
     {
-      name: 'Khon Mask Painting',
+      name: 'Khon Mask Painting Workshop',
       nameTh: 'การเขียนสี - เขียนหน้าหัวโขน',
       zone: 'LAB',
+      description: 'Experience creative Thai art through Khon mask painting. Learn about the patterns, colors, and unique characteristics of Khon characters in traditional Thai masked dance drama.',
       sortOrder: 5,
       sessions: [
         { start: '10:00', end: '12:00', capacity: 10 },
@@ -91,12 +97,13 @@ async function main() {
       ]
     },
     {
-      name: 'Panel Discussion & Khon Performance',
-      nameTh: 'กิจกรรมเสวนา "เด็กวิทย์หัวใจศิลป์" และรับชมการแสดงโขน นาฏศิลป์',
+      name: 'ROOTED Talks & Performance',
+      nameTh: 'กิจกรรมเสวนา "เด็กวิทย์หัวใจศิลป์" และรับชมการแสดงนาฏศิลป์',
       zone: 'STAGE',
+      description: 'Opening Ceremony, Creative Thai Dance Performance "Roots of Thailand", Discussion: Science Hearts Thai Arts, Khon Performance: Battle Scene, and Suthaphirom Dance.',
       sortOrder: 6,
       sessions: [
-        { start: '13:00', end: '15:30', capacity: 140 }
+        { start: '14:00', end: '15:30', capacity: 50 }
       ]
     }
   ];
@@ -113,6 +120,7 @@ async function main() {
         name: actData.name,
         nameTh: actData.nameTh,
         zone: actData.zone,
+        description: actData.description,
         sortOrder: actData.sortOrder,
         isActive: true
       },
@@ -122,6 +130,7 @@ async function main() {
         name: actData.name,
         nameTh: actData.nameTh,
         zone: actData.zone,
+        description: actData.description,
         sortOrder: actData.sortOrder
       }
     });
