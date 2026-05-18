@@ -89,13 +89,15 @@ export async function buildServer() {
   // ─── Vue SPA Catch-All ─────────────────────────────
   // Serve public/app/index.html for any non-API, non-static route
   // This lets Vue Router handle client-side routing
+  // Note: fastifyStatic already serves /admin/, /staff/, /app/ etc.
+  //       from public/ before this handler is reached.
   app.setNotFoundHandler(async (_request, reply) => {
     const url = _request.url;
-    // Don't catch API or known static paths
-    if (url.startsWith('/api/') || url.startsWith('/admin') || url.startsWith('/staff') || url.startsWith('/health')) {
+    // Only block API and health routes from the SPA catch-all
+    if (url.startsWith('/api/') || url.startsWith('/health')) {
       return reply.status(404).send({ ok: false, error: { code: 'NOT_FOUND', message: 'Route not found' } });
     }
-    // Serve Vue SPA
+    // Serve Vue SPA for all other paths
     return reply.sendFile('app/index.html');
   });
 

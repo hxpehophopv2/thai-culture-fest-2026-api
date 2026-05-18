@@ -184,6 +184,6 @@ export async function registrationRoutes(app: FastifyInstance) {
     if (!participant) return reply.status(404).send({ ok: false, error: { code: 'NOT_FOUND', message: 'ยังไม่ได้ลงทะเบียน' } });
 
     const qr = await generateParticipantQr(participant.id);
-    return reply.send({ ok: true, data: qr });
+    return reply.send({ ok: true, data: { ...qr, shortCode: participant.shortCode } });
   });
 }

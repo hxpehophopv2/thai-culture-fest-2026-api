@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js';
+import { generateUniqueShortCode } from '../lib/shortCode.js';
 import type { RegistrationInput, UpdateRegistrationInput } from './validation.service.js';
 
 // ─── Types ───────────────────────────────────────────────
@@ -53,77 +54,86 @@ export async function registerParticipant(input: RegistrationInput) {
     );
   }
 
-  // 2. Fetch selected sessions with activity info
-  const sessions = await prisma.session.findMany({
-    where: { id: { in: selectedSessionIds } },
-    include: { activity: { select: { id: true, name: true, nameTh: true } } }
-  });
+  // 2. Validate sessions (only if any selected)
+  let sessions: Array<any> = [];
+  if (selectedSessionIds.length > 0) {
+    // Fetch selected sessions with activity info
+    sessions = await prisma.session.findMany({
+      where: { id: { in: selectedSessionIds } },
+      include: { activity: { select: { id: true, name: true, nameTh: true } } }
+    });
 
-  if (sessions.length !== selectedSessionIds.length) {
-    const foundIds = sessions.map(s => s.id);
-    const missingIds = selectedSessionIds.filter(id => !foundIds.includes(id));
-    throw new RegistrationError(
-      'SESSION_NOT_FOUND',
-      `ไม่พบรอบกิจกรรมบางรอบ / Some sessions were not found: ${missingIds.join(', ')}`
+    if (sessions.length !== selectedSessionIds.length) {
+      const foundIds = sessions.map((s: any) => s.id);
+      const missingIds = selectedSessionIds.filter(id => !foundIds.includes(id));
+      throw new RegistrationError(
+        'SESSION_NOT_FOUND',
+        `ไม่พบรอบกิจกรรมบางรอบ / Some sessions were not found: ${missingIds.join(', ')}`
+      );
+    }
+
+    // 2.5 ป้องกันจองฐานเดียวกันซ้ำ (1 คน = 1 รอบต่อ 1 ฐาน)
+    const activityIds = sessions.map((s: any) => s.activity.id);
+    const duplicateActivity = sessions.find((s: any, i: number) =>
+      activityIds.indexOf(s.activity.id) !== i
     );
-  }
+    if (duplicateActivity) {
+      throw new RegistrationError(
+        'DUPLICATE_ACTIVITY',
+        `ไม่สามารถจองฐาน "${duplicateActivity.activity.nameTh}" มากกว่า 1 รอบ / Cannot book "${duplicateActivity.activity.name}" more than once`
+      );
+    }
 
-  // 2.5 ป้องกันจองฐานเดียวกันซ้ำ (1 คน = 1 รอบต่อ 1 ฐาน)
-  const activityIds = sessions.map(s => s.activity.id);
-  const duplicateActivity = sessions.find((s, i) =>
-    activityIds.indexOf(s.activity.id) !== i
-  );
-  if (duplicateActivity) {
-    throw new RegistrationError(
-      'DUPLICATE_ACTIVITY',
-      `ไม่สามารถจองฐาน "${duplicateActivity.activity.nameTh}" มากกว่า 1 รอบ / Cannot book "${duplicateActivity.activity.name}" more than once`
-    );
-  }
+    // 3. Check time overlap
+    const sessionRanges: SessionTimeRange[] = sessions.map((s: any) => ({
+      id: s.id,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      capacity: s.capacity,
+      bookedCount: s.bookedCount,
+      activityName: s.activity.nameTh
+    }));
 
-  // 3. Check time overlap
-  const sessionRanges: SessionTimeRange[] = sessions.map(s => ({
-    id: s.id,
-    startTime: s.startTime,
-    endTime: s.endTime,
-    capacity: s.capacity,
-    bookedCount: s.bookedCount,
-    activityName: s.activity.nameTh
-  }));
-
-  const overlap = hasTimeOverlap(sessionRanges);
-  if (overlap.hasOverlap) {
-    throw new RegistrationError(
-      'TIME_OVERLAP',
-      `เวลาทับซ้อน: ${overlap.conflictA} กับ ${overlap.conflictB} / Time conflict between selected sessions`
-    );
+    const overlap = hasTimeOverlap(sessionRanges);
+    if (overlap.hasOverlap) {
+      throw new RegistrationError(
+        'TIME_OVERLAP',
+        `เวลาทับซ้อน: ${overlap.conflictA} กับ ${overlap.conflictB} / Time conflict between selected sessions`
+      );
+    }
   }
 
   // 4. Atomic transaction: create participant + bookings + increment counters
   const result = await prisma.$transaction(async (tx) => {
-    // 4a. Lock sessions and verify capacity
-    for (const sessionId of selectedSessionIds) {
-      const locked = await tx.$queryRaw<Array<{ id: string; capacity: number; booked_count: number }>>`
-        SELECT id, capacity, booked_count
-        FROM sessions
-        WHERE id = ${sessionId}::uuid
-        FOR UPDATE
-      `;
+    // 4a. Lock sessions and verify capacity (only if sessions selected)
+    if (selectedSessionIds.length > 0) {
+      for (const sessionId of selectedSessionIds) {
+        const locked = await tx.$queryRaw<Array<{ id: string; capacity: number; booked_count: number }>>`
+          SELECT id, capacity, booked_count
+          FROM sessions
+          WHERE id = ${sessionId}::uuid
+          FOR UPDATE
+        `;
 
-      if (!locked || locked.length === 0) {
-        throw new RegistrationError('SESSION_NOT_FOUND', `Session ${sessionId} not found`);
-      }
+        if (!locked || locked.length === 0) {
+          throw new RegistrationError('SESSION_NOT_FOUND', `Session ${sessionId} not found`);
+        }
 
-      const sess = locked[0];
-      if (sess.booked_count >= sess.capacity) {
-        const sessionInfo = sessions.find(s => s.id === sessionId);
-        throw new RegistrationError(
-          'SESSION_FULL',
-          `รอบ ${sessionInfo?.activity.nameTh} (${formatTime(sessionInfo!.startTime)}-${formatTime(sessionInfo!.endTime)}) เต็มแล้ว / This session is full`
-        );
+        const sess = locked[0];
+        if (sess.booked_count >= sess.capacity) {
+          const sessionInfo = sessions.find((s: any) => s.id === sessionId);
+          throw new RegistrationError(
+            'SESSION_FULL',
+            `รอบ ${sessionInfo?.activity.nameTh} (${formatTime(sessionInfo!.startTime)}-${formatTime(sessionInfo!.endTime)}) เต็มแล้ว / This session is full`
+          );
+        }
       }
     }
 
-    // 4b. Create participant
+    // 4b. Generate short code for manual check-in
+    const shortCode = await generateUniqueShortCode();
+
+    // 4c. Create participant
     const participant = await tx.participant.create({
       data: {
         lineUserId: participantData.lineUserId,
@@ -143,23 +153,26 @@ export async function registerParticipant(input: RegistrationInput) {
         department: participantData.department ?? null,
         departmentOther: participantData.departmentOther ?? null,
         pdpaConsent: participantData.pdpaConsent,
-        mediaConsent: participantData.mediaConsent
+        mediaConsent: participantData.mediaConsent,
+        shortCode
       }
     });
 
-    // 4c. Create bookings + increment booked_count
-    for (const sessionId of selectedSessionIds) {
-      await tx.booking.create({
-        data: {
-          participantId: participant.id,
-          sessionId
-        }
-      });
+    // 4c. Create bookings + increment booked_count (only if sessions selected)
+    if (selectedSessionIds.length > 0) {
+      for (const sessionId of selectedSessionIds) {
+        await tx.booking.create({
+          data: {
+            participantId: participant.id,
+            sessionId
+          }
+        });
 
-      await tx.session.update({
-        where: { id: sessionId },
-        data: { bookedCount: { increment: 1 } }
-      });
+        await tx.session.update({
+          where: { id: sessionId },
+          data: { bookedCount: { increment: 1 } }
+        });
+      }
     }
 
     return participant;
