@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js';
 import { generateUniqueShortCode } from '../lib/shortCode.js';
+import { linkRegisteredMenuToUser } from './richmenu.service.js';
 import type { RegistrationInput, UpdateRegistrationInput } from './validation.service.js';
 
 // ─── Types ───────────────────────────────────────────────
@@ -178,7 +179,10 @@ export async function registerParticipant(input: RegistrationInput) {
     return participant;
   });
 
-  // 5. Return full registration with bookings
+  // 5. Switch Rich Menu to "registered" version (fire-and-forget)
+  linkRegisteredMenuToUser(input.lineUserId).catch(() => {});
+
+  // 6. Return full registration with bookings
   return getParticipantWithBookings(result.id);
 }
 

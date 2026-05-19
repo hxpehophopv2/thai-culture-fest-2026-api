@@ -1,18 +1,3 @@
-/**
- * School Service (Case 2 — ครู + นักเรียน)
- * ─────────────────────────────────────────────────────────────
- *
- * จัดการ flow ที่ครูลงทะเบียนให้นักเรียนทั้งห้อง:
- *
- *   1. ครูลงทะเบียนตัวเองก่อน (เป็น Participant ปกติ)
- *   2. ครูอัปโหลด Excel รายชื่อนักเรียน → ระบบ parse + สร้าง Student records
- *   3. ครูเลือกรอบให้นักเรียนแต่ละคน → ระบบสร้าง Bookings
- *   4. ครูกดสร้าง QR → ระบบ generate QR per student
- *   5. ครูพิมพ์ QR Card → แจกให้เด็กห้อยคอวันงาน
- *
- * ─────────────────────────────────────────────────────────────
- */
-
 import { prisma } from '../lib/prisma.js';
 import { generateUniqueShortCode } from '../lib/shortCode.js';
 import ExcelJS from 'exceljs';

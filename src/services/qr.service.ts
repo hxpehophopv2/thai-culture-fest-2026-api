@@ -47,6 +47,8 @@ export interface QrResult {
   qrData: string;
   /** QR Code เป็น Data URL (image/png;base64,...) */
   dataUrl: string;
+  /** Short Code สำหรับ Manual Check-in (ถ้ามี) */
+  shortCode?: string | null;
   /** ข้อมูลคน */
   person: {
     id: string;
@@ -136,7 +138,7 @@ export function parseQrData(raw: string): QrParsedData {
 export async function generateParticipantQr(participantId: string): Promise<QrResult> {
   const participant = await prisma.participant.findUnique({
     where: { id: participantId },
-    select: { id: true, firstName: true, lastName: true }
+    select: { id: true, firstName: true, lastName: true, shortCode: true }
   });
 
   if (!participant) {
@@ -155,6 +157,7 @@ export async function generateParticipantQr(participantId: string): Promise<QrRe
   return {
     qrData,
     dataUrl,
+    shortCode: participant.shortCode,
     person: {
       id: participant.id,
       type: 'participant',
@@ -174,7 +177,7 @@ export async function generateParticipantQr(participantId: string): Promise<QrRe
 export async function generateStudentQr(studentId: string): Promise<QrResult> {
   const student = await prisma.student.findUnique({
     where: { id: studentId },
-    select: { id: true, firstName: true, lastName: true }
+    select: { id: true, firstName: true, lastName: true, shortCode: true }
   });
 
   if (!student) {
@@ -193,6 +196,7 @@ export async function generateStudentQr(studentId: string): Promise<QrResult> {
   return {
     qrData,
     dataUrl,
+    shortCode: student.shortCode,
     person: {
       id: student.id,
       type: 'student',

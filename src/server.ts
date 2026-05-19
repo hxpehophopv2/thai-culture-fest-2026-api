@@ -12,6 +12,7 @@ import { bookingRoutes } from './routes/bookings.js';
 import { checkinRoutes } from './routes/checkin.js';
 import { schoolRoutes } from './routes/school.js';
 import { adminRoutes } from './routes/admin.js';
+import { richMenuRoutes } from './routes/richmenu.js';
 
 export async function buildServer() {
   const app = Fastify({
@@ -71,6 +72,7 @@ export async function buildServer() {
   await app.register(checkinRoutes);
   await app.register(schoolRoutes);
   await app.register(adminRoutes);
+  await app.register(richMenuRoutes);
 
   // ─── Global error handler ──────────────────────────
   app.setErrorHandler((error: Error & { statusCode?: number }, _request, reply) => {
