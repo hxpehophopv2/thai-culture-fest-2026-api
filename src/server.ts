@@ -12,6 +12,7 @@ import { bookingRoutes } from './routes/bookings.js';
 import { checkinRoutes } from './routes/checkin.js';
 import { schoolRoutes } from './routes/school.js';
 import { adminRoutes } from './routes/admin.js';
+import { richMenuRoutes } from './routes/richmenu.js';
 
 export async function buildServer() {
   const app = Fastify({
@@ -57,6 +58,17 @@ export async function buildServer() {
     }
   });
 
+  // Redirect old staff paths to new staff-login in Vue SPA
+  app.get('/staff', async (request, reply) => {
+    return reply.redirect('/staff-login');
+  });
+  app.get('/staff/', async (request, reply) => {
+    return reply.redirect('/staff-login');
+  });
+  app.get('/staff/*', async (request, reply) => {
+    return reply.redirect('/staff-login');
+  });
+
   // ─── Static files (Admin Dashboard) ────────────────
   await app.register(fastifyStatic, {
     root: path.join(process.cwd(), 'public'),
@@ -71,6 +83,7 @@ export async function buildServer() {
   await app.register(checkinRoutes);
   await app.register(schoolRoutes);
   await app.register(adminRoutes);
+  await app.register(richMenuRoutes);
 
   // ─── Global error handler ──────────────────────────
   app.setErrorHandler((error: Error & { statusCode?: number }, _request, reply) => {

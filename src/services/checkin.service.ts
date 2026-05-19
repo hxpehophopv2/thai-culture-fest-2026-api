@@ -63,6 +63,7 @@ export interface ScanResult {
     type: 'participant' | 'student';
     name: string;
     org: string;
+    shortCode?: string | null;
   };
   /** ข้อความอธิบาย */
   message: string;
@@ -143,17 +144,17 @@ async function getPersonInfo(type: 'participant' | 'student', personId: string) 
   if (type === 'participant') {
     const p = await prisma.participant.findUnique({
       where: { id: personId },
-      select: { id: true, firstName: true, lastName: true, organization: true }
+      select: { id: true, firstName: true, lastName: true, organization: true, shortCode: true }
     });
     if (!p) return null;
-    return { id: p.id, name: `${p.firstName} ${p.lastName}`, org: p.organization };
+    return { id: p.id, name: `${p.firstName} ${p.lastName}`, org: p.organization, shortCode: p.shortCode };
   } else {
     const s = await prisma.student.findUnique({
       where: { id: personId },
-      select: { id: true, firstName: true, lastName: true, schoolName: true }
+      select: { id: true, firstName: true, lastName: true, schoolName: true, shortCode: true }
     });
     if (!s) return null;
-    return { id: s.id, name: `${s.firstName} ${s.lastName}`, org: s.schoolName ?? '' };
+    return { id: s.id, name: `${s.firstName} ${s.lastName}`, org: s.schoolName ?? '', shortCode: s.shortCode };
   }
 }
 
@@ -357,7 +358,7 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
       return {
         result: 'gate_already',
         scanLogId: scanLog.id,
-        person: { id: parsed.id, type: parsed.type, name: personInfo.name, org: personInfo.org },
+        person: { id: parsed.id, type: parsed.type, name: personInfo.name, org: personInfo.org, shortCode: personInfo.shortCode },
         message: `⚠️ เข้างานแล้วเมื่อ ${formatTime(existing.gateCheckedInAt)} — ไม่ต้องสแกนซ้ำ`,
         stamps
       };
@@ -386,7 +387,7 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
     return {
       result: 'gate_checked_in',
       scanLogId: scanLog.id,
-      person: { id: parsed.id, type: parsed.type, name: personInfo.name, org: personInfo.org },
+      person: { id: parsed.id, type: parsed.type, name: personInfo.name, org: personInfo.org, shortCode: personInfo.shortCode },
       message: `✅ ลงทะเบียนเข้างานสำเร็จ — ยินดีต้อนรับ ${personInfo.name}`,
       stamps
     };
@@ -415,7 +416,7 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
     return {
       result: 'not_gate_checked_in',
       scanLogId: scanLog.id,
-      person: { id: parsed.id, type: parsed.type, name: personInfo.name, org: personInfo.org },
+      person: { id: parsed.id, type: parsed.type, name: personInfo.name, org: personInfo.org, shortCode: personInfo.shortCode },
       message: '❌ ยังไม่ได้สแกนเข้างาน — ต้องไปสแกนที่ประตูก่อน',
       stamps
     };
@@ -523,7 +524,8 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
       id: parsed.id,
       type: parsed.type,
       name: personInfo.name,
-      org: personInfo.org
+      org: personInfo.org,
+      shortCode: personInfo.shortCode
     },
     message,
     matchedBooking,
@@ -687,7 +689,7 @@ export async function searchPerson(query: string) {
     },
     select: {
       id: true, firstName: true, lastName: true, nickname: true,
-      organization: true, participantType: true
+      organization: true, participantType: true, shortCode: true
     },
     take: 10
   });
@@ -702,7 +704,7 @@ export async function searchPerson(query: string) {
     },
     select: {
       id: true, firstName: true, lastName: true,
-      classRoom: true, schoolName: true
+      classRoom: true, schoolName: true, shortCode: true
     },
     take: 10
   });
@@ -714,14 +716,16 @@ export async function searchPerson(query: string) {
       name: `${p.firstName} ${p.lastName}`,
       nickname: p.nickname,
       org: p.organization,
-      participantType: p.participantType
+      participantType: p.participantType,
+      shortCode: p.shortCode
     })),
     students: students.map(s => ({
       id: s.id,
       type: 'student' as const,
       name: `${s.firstName} ${s.lastName}`,
       classRoom: s.classRoom,
-      schoolName: s.schoolName
+      schoolName: s.schoolName,
+      shortCode: s.shortCode
     }))
   };
 }

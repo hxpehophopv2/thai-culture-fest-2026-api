@@ -31,6 +31,8 @@ import {
 
 export async function checkinRoutes(app: FastifyInstance) {
 
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   // ─── Helper: ตรวจ staff session จาก header ─────────────
 
   async function requireStaffSession(request: any, reply: any) {
@@ -39,6 +41,14 @@ export async function checkinRoutes(app: FastifyInstance) {
       reply.status(401).send({
         ok: false,
         error: { code: 'UNAUTHORIZED', message: 'Missing X-Staff-Session header' }
+      });
+      return null;
+    }
+
+    if (!UUID_REGEX.test(sessionId)) {
+      reply.status(401).send({
+        ok: false,
+        error: { code: 'SESSION_EXPIRED', message: 'Staff session รูปแบบไม่ถูกต้อง กรุณา login ใหม่' }
       });
       return null;
     }
@@ -101,7 +111,11 @@ export async function checkinRoutes(app: FastifyInstance) {
           error: { code: error.code, message: error.message }
         });
       }
-      throw error;
+      app.log.error(error);
+      return reply.status(400).send({
+        ok: false,
+        error: { code: 'UNEXPECTED_ERROR', message: (error as Error).message || 'เกิดข้อผิดพลาดไม่ทราบสาเหตุ' }
+      });
     }
   });
 
@@ -145,7 +159,11 @@ export async function checkinRoutes(app: FastifyInstance) {
           error: { code: error.code, message: error.message }
         });
       }
-      throw error;
+      app.log.error(error);
+      return reply.status(400).send({
+        ok: false,
+        error: { code: 'UNEXPECTED_ERROR', message: (error as Error).message || 'เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์การสแกน' }
+      });
     }
   });
 
@@ -158,9 +176,17 @@ export async function checkinRoutes(app: FastifyInstance) {
       const session = await requireStaffSession(request, reply);
       if (!session) return;
 
+      const { id } = request.params;
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(400).send({
+          ok: false,
+          error: { code: 'VALIDATION_ERROR', message: 'รหัสอ้างอิงการสแกนไม่ถูกต้อง' }
+        });
+      }
+
       try {
         const { note } = (request.body as { note?: string }) ?? {};
-        const result = await overrideScan(request.params.id, session.staffId, note);
+        const result = await overrideScan(id, session.staffId, note);
         return reply.send({ ok: true, ...result });
       } catch (error) {
         if (error instanceof CheckinError) {
@@ -169,7 +195,11 @@ export async function checkinRoutes(app: FastifyInstance) {
             error: { code: error.code, message: error.message }
           });
         }
-        throw error;
+        app.log.error(error);
+        return reply.status(400).send({
+          ok: false,
+          error: { code: 'UNEXPECTED_ERROR', message: (error as Error).message || 'เกิดข้อผิดพลาดในการอนุมัติพิเศษ' }
+        });
       }
     }
   );
@@ -182,9 +212,17 @@ export async function checkinRoutes(app: FastifyInstance) {
       const session = await requireStaffSession(request, reply);
       if (!session) return;
 
+      const { id } = request.params;
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(400).send({
+          ok: false,
+          error: { code: 'VALIDATION_ERROR', message: 'รหัสอ้างอิงการสแกนไม่ถูกต้อง' }
+        });
+      }
+
       try {
         const { note } = (request.body as { note?: string }) ?? {};
-        const result = await rejectScan(request.params.id, session.staffId, note);
+        const result = await rejectScan(id, session.staffId, note);
         return reply.send({ ok: true, ...result });
       } catch (error) {
         if (error instanceof CheckinError) {
@@ -193,7 +231,11 @@ export async function checkinRoutes(app: FastifyInstance) {
             error: { code: error.code, message: error.message }
           });
         }
-        throw error;
+        app.log.error(error);
+        return reply.status(400).send({
+          ok: false,
+          error: { code: 'UNEXPECTED_ERROR', message: (error as Error).message || 'เกิดข้อผิดพลาดในการปฏิเสธเช็คอิน' }
+        });
       }
     }
   );
@@ -214,8 +256,23 @@ export async function checkinRoutes(app: FastifyInstance) {
         });
       }
 
-      const stamps = await getParticipantStamps(type, id);
-      return reply.send({ ok: true, data: stamps });
+      if (!UUID_REGEX.test(id)) {
+        return reply.status(400).send({
+          ok: false,
+          error: { code: 'VALIDATION_ERROR', message: 'รหัสผู้ใช้ไม่ถูกต้อง' }
+        });
+      }
+
+      try {
+        const stamps = await getParticipantStamps(type, id);
+        return reply.send({ ok: true, data: stamps });
+      } catch (error) {
+        app.log.error(error);
+        return reply.status(400).send({
+          ok: false,
+          error: { code: 'UNEXPECTED_ERROR', message: (error as Error).message || 'เกิดข้อผิดพลาดในการดึงข้อมูลแสตมป์' }
+        });
+      }
     }
   );
 
@@ -243,7 +300,11 @@ export async function checkinRoutes(app: FastifyInstance) {
           error: { code: error.code, message: error.message }
         });
       }
-      throw error;
+      app.log.error(error);
+      return reply.status(400).send({
+        ok: false,
+        error: { code: 'UNEXPECTED_ERROR', message: (error as Error).message || 'เกิดข้อผิดพลาดในการค้นหาผู้เข้าร่วม' }
+      });
     }
   });
 }

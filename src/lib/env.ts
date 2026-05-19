@@ -25,6 +25,10 @@ const envSchema = z.object({
   LINE_CHANNEL_SECRET: z.string().optional(),
   LINE_CHANNEL_ACCESS_TOKEN: z.string().optional(),
 
+  // ─── Rich Menu IDs (set after running /api/admin/richmenu/setup) ──
+  RICH_MENU_DEFAULT_ID: z.string().optional(),
+  RICH_MENU_REGISTERED_ID: z.string().optional(),
+
   // ─── Role whitelist (comma-separated LINE userIds) ────
   // ใครที่ LINE userId อยู่ในลิสต์นี้ จะมี role เพิ่มเติม
   STAFF_LINE_USER_IDS: z.string().default(''),
