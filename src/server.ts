@@ -58,6 +58,17 @@ export async function buildServer() {
     }
   });
 
+  // Redirect old staff paths to new staff-login in Vue SPA
+  app.get('/staff', async (request, reply) => {
+    return reply.redirect('/staff-login');
+  });
+  app.get('/staff/', async (request, reply) => {
+    return reply.redirect('/staff-login');
+  });
+  app.get('/staff/*', async (request, reply) => {
+    return reply.redirect('/staff-login');
+  });
+
   // ─── Static files (Admin Dashboard) ────────────────
   await app.register(fastifyStatic, {
     root: path.join(process.cwd(), 'public'),
