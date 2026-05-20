@@ -267,7 +267,8 @@ async function setDefaultRichMenu(richMenuId: string): Promise<void> {
   const res = await fetch(`${LINE_API_BASE}/v2/bot/user/all/richmenu/${richMenuId}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'Content-Length': '0'
     }
   });
 
@@ -360,7 +361,8 @@ export async function linkRegisteredMenuToUser(lineUserId: string): Promise<void
     const res = await fetch(`${LINE_API_BASE}/v2/bot/user/${lineUserId}/richmenu/${registeredMenuId}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'Content-Length': '0'
       }
     });
 

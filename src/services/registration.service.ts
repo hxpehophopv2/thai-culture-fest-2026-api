@@ -359,7 +359,7 @@ async function getParticipantWithBookings(participantId: string) {
           session: {
             include: {
               activity: {
-                select: { id: true, name: true, nameTh: true, zone: true }
+                select: { id: true, name: true, nameTh: true, zone: true, sortOrder: true }
               }
             }
           }
