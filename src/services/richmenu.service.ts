@@ -47,6 +47,32 @@ interface CreateRichMenuResponse {
 const LINE_API_BASE = 'https://api.line.me';
 const LINE_DATA_API_BASE = 'https://api-data.line.me';
 
+const TRAVEL_MESSAGE = `📍 การเดินทางมายังงาน
+KMUTT ROOTED: Thai Sustainable Culture Fest 2026
+
+สถานที่จัดงาน: พื้นที่สนับสนุนด้านการเรียนรู้
+(Science Learning Space)
+
+📌 Google Maps
+https://share.google/OTYgs8btfYYqHKY8H
+
+🚗 รถยนต์ส่วนตัว / รถตู้โรงเรียน 
+สามารถนำรถยนต์มาเองได้ และจอดรถฟรีที่อาคาร S2`;
+
+const CONTACT_MESSAGE = `📞 ติดต่อสอบถาม
+KMUTT ROOTED: Thai Sustainable Culture Fest 2026
+
+หากต้องการสอบถามข้อมูลเพิ่มเติมเกี่ยวกับ:
+• การลงทะเบียน
+• กิจกรรมภายในงาน
+• การเดินทาง
+• การสมัคร Workshop
+
+สามารถติดต่อทีมงานได้ที่
+
+โทรศัพท์: 093-9262583 (พั้นซ์)
+โทรศัพท์: 061-3960779 (เฟิร์น)`;
+
 // LIFF URL สำหรับ actions ที่เปิดใน LIFF
 function getLiffUrl(): string {
   return `https://liff.line.me/${env.LIFF_ID || ''}`;
@@ -69,8 +95,6 @@ function getLiffUrl(): string {
  */
 function buildBeforeLoginMenu(): RichMenuObject {
   const liffUrl = getLiffUrl();
-  const mapsUrl = "https://www.google.com/maps/search/?api=1&query=King+Mongkut%27s+University+of+Technology+Thonburi+(KMUTT)";
-  const contactUrl = "https://www.facebook.com/ThaiDancingClub?mibextid=wwXIfr";
 
   return {
     size: { width: 2500, height: 1686 },
@@ -80,7 +104,7 @@ function buildBeforeLoginMenu(): RichMenuObject {
     areas: [
       // ลงทะเบียนเข้างาน (ปุ่มใหญ่ด้านบน)
       {
-        bounds: { x: 0, y: 0, width: 2500, height: 1060 },
+        bounds: { x: 0, y: 0, width: 2500, height: 843 },
         action: {
           type: 'uri',
           uri: liffUrl,
@@ -89,20 +113,20 @@ function buildBeforeLoginMenu(): RichMenuObject {
       },
       // การเดินทาง (ล่างซ้าย)
       {
-        bounds: { x: 0, y: 1060, width: 1250, height: 626 },
+        bounds: { x: 0, y: 843, width: 1250, height: 843 },
         action: {
-          type: 'uri',
-          uri: mapsUrl,
+          type: 'message',
+          text: TRAVEL_MESSAGE,
           label: 'การเดินทาง'
         }
       },
       // ติดต่อเรา (ล่างขวา)
       {
-        bounds: { x: 1250, y: 1060, width: 1250, height: 626 },
+        bounds: { x: 1250, y: 843, width: 1250, height: 843 },
         action: {
-          type: 'uri',
-          uri: contactUrl,
-          label: 'ติดต่อเรา'
+          type: 'message',
+          text: CONTACT_MESSAGE,
+          label: 'ติดต่อสอบถาม'
         }
       }
     ]
@@ -126,8 +150,6 @@ function buildBeforeLoginMenu(): RichMenuObject {
  */
 function buildAfterLoginMenu(): RichMenuObject {
   const liffUrl = getLiffUrl();
-  const mapsUrl = "https://www.google.com/maps/search/?api=1&query=King+Mongkut%27s+University+of+Technology+Thonburi+(KMUTT)";
-  const contactUrl = "https://www.facebook.com/ThaiDancingClub?mibextid=wwXIfr";
 
   return {
     size: { width: 2500, height: 1686 },
@@ -157,8 +179,8 @@ function buildAfterLoginMenu(): RichMenuObject {
       {
         bounds: { x: 0, y: 843, width: 1250, height: 843 },
         action: {
-          type: 'uri',
-          uri: mapsUrl,
+          type: 'message',
+          text: TRAVEL_MESSAGE,
           label: 'การเดินทาง'
         }
       },
@@ -166,9 +188,9 @@ function buildAfterLoginMenu(): RichMenuObject {
       {
         bounds: { x: 1250, y: 843, width: 1250, height: 843 },
         action: {
-          type: 'uri',
-          uri: contactUrl,
-          label: 'ติดต่อเรา'
+          type: 'message',
+          text: CONTACT_MESSAGE,
+          label: 'ติดต่อสอบถาม'
         }
       }
     ]
@@ -245,7 +267,8 @@ async function setDefaultRichMenu(richMenuId: string): Promise<void> {
   const res = await fetch(`${LINE_API_BASE}/v2/bot/user/all/richmenu/${richMenuId}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'Content-Length': '0'
     }
   });
 
@@ -338,7 +361,8 @@ export async function linkRegisteredMenuToUser(lineUserId: string): Promise<void
     const res = await fetch(`${LINE_API_BASE}/v2/bot/user/${lineUserId}/richmenu/${registeredMenuId}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`
+        'Authorization': `Bearer ${token}`,
+        'Content-Length': '0'
       }
     });
 
