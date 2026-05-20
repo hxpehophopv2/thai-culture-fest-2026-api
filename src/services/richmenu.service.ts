@@ -69,6 +69,8 @@ function getLiffUrl(): string {
  */
 function buildBeforeLoginMenu(): RichMenuObject {
   const liffUrl = getLiffUrl();
+  const mapsUrl = "https://www.google.com/maps/search/?api=1&query=King+Mongkut%27s+University+of+Technology+Thonburi+(KMUTT)";
+  const contactUrl = "https://www.facebook.com/ThaiDancingClub?mibextid=wwXIfr";
 
   return {
     size: { width: 2500, height: 1686 },
@@ -76,7 +78,7 @@ function buildBeforeLoginMenu(): RichMenuObject {
     name: 'ROOTED 2026 - Before Registration',
     chatBarText: 'Menu',
     areas: [
-      // ปุ่มใหญ่: ลงทะเบียนเข้างาน
+      // ลงทะเบียนเข้างาน (ปุ่มใหญ่ด้านบน)
       {
         bounds: { x: 0, y: 0, width: 2500, height: 1060 },
         action: {
@@ -85,31 +87,22 @@ function buildBeforeLoginMenu(): RichMenuObject {
           label: 'ลงทะเบียนเข้างาน'
         }
       },
-      // Details
+      // การเดินทาง (ล่างซ้าย)
       {
-        bounds: { x: 0, y: 1060, width: 833, height: 626 },
+        bounds: { x: 0, y: 1060, width: 1250, height: 626 },
         action: {
           type: 'uri',
-          uri: liffUrl,
-          label: 'Details'
+          uri: mapsUrl,
+          label: 'การเดินทาง'
         }
       },
-      // Car Park
+      // ติดต่อเรา (ล่างขวา)
       {
-        bounds: { x: 833, y: 1060, width: 834, height: 626 },
+        bounds: { x: 1250, y: 1060, width: 1250, height: 626 },
         action: {
           type: 'uri',
-          uri: liffUrl,
-          label: 'Car Park'
-        }
-      },
-      // Contact
-      {
-        bounds: { x: 1667, y: 1060, width: 833, height: 626 },
-        action: {
-          type: 'uri',
-          uri: liffUrl,
-          label: 'Contact'
+          uri: contactUrl,
+          label: 'ติดต่อเรา'
         }
       }
     ]
@@ -133,6 +126,8 @@ function buildBeforeLoginMenu(): RichMenuObject {
  */
 function buildAfterLoginMenu(): RichMenuObject {
   const liffUrl = getLiffUrl();
+  const mapsUrl = "https://www.google.com/maps/search/?api=1&query=King+Mongkut%27s+University+of+Technology+Thonburi+(KMUTT)";
+  const contactUrl = "https://www.facebook.com/ThaiDancingClub?mibextid=wwXIfr";
 
   return {
     size: { width: 2500, height: 1686 },
@@ -140,40 +135,40 @@ function buildAfterLoginMenu(): RichMenuObject {
     name: 'ROOTED 2026 - After Registration',
     chatBarText: 'Menu',
     areas: [
-      // QR Code เรา (บนซ้าย)
+      // โปรไฟล์ของฉัน (บนซ้าย)
       {
         bounds: { x: 0, y: 0, width: 1250, height: 843 },
         action: {
           type: 'uri',
-          uri: liffUrl,
-          label: 'QR Code ของฉัน'
+          uri: `${liffUrl}/profile`,
+          label: 'โปรไฟล์ของฉัน'
         }
       },
-      // Reserve Details (บนขวา)
+      // จองกิจกรรม / รายละเอียดกิจกรรม (บนขวา)
       {
         bounds: { x: 1250, y: 0, width: 1250, height: 843 },
         action: {
           type: 'uri',
-          uri: liffUrl,
-          label: 'Reserve Details'
+          uri: `${liffUrl}/activities`,
+          label: 'จองกิจกรรม'
         }
       },
-      // Car Park (ล่างซ้าย)
+      // การเดินทาง (ล่างซ้าย)
       {
         bounds: { x: 0, y: 843, width: 1250, height: 843 },
         action: {
           type: 'uri',
-          uri: liffUrl,
-          label: 'Car Park'
+          uri: mapsUrl,
+          label: 'การเดินทาง'
         }
       },
-      // Contact (ล่างขวา)
+      // ติดต่อเรา (ล่างขวา)
       {
         bounds: { x: 1250, y: 843, width: 1250, height: 843 },
         action: {
           type: 'uri',
-          uri: liffUrl,
-          label: 'Contact'
+          uri: contactUrl,
+          label: 'ติดต่อเรา'
         }
       }
     ]
