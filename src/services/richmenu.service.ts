@@ -80,7 +80,7 @@ function buildBeforeLoginMenu(): RichMenuObject {
     areas: [
       // ลงทะเบียนเข้างาน (ปุ่มใหญ่ด้านบน)
       {
-        bounds: { x: 0, y: 0, width: 2500, height: 1060 },
+        bounds: { x: 0, y: 0, width: 2500, height: 843 },
         action: {
           type: 'uri',
           uri: liffUrl,
@@ -89,7 +89,7 @@ function buildBeforeLoginMenu(): RichMenuObject {
       },
       // การเดินทาง (ล่างซ้าย)
       {
-        bounds: { x: 0, y: 1060, width: 1250, height: 626 },
+        bounds: { x: 0, y: 843, width: 1250, height: 843 },
         action: {
           type: 'uri',
           uri: mapsUrl,
@@ -98,7 +98,7 @@ function buildBeforeLoginMenu(): RichMenuObject {
       },
       // ติดต่อเรา (ล่างขวา)
       {
-        bounds: { x: 1250, y: 1060, width: 1250, height: 626 },
+        bounds: { x: 1250, y: 843, width: 1250, height: 843 },
         action: {
           type: 'uri',
           uri: contactUrl,
