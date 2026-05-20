@@ -137,7 +137,7 @@ function buildAfterLoginMenu(): RichMenuObject {
     areas: [
       // โปรไฟล์ของฉัน (บนซ้าย)
       {
-        bounds: { x: 0, y: 0, width: 1250, height: 843 },
+        bounds: { x: 0, y: 0, width: 1400, height: 843 },
         action: {
           type: 'uri',
           uri: `${liffUrl}/profile`,
@@ -146,7 +146,7 @@ function buildAfterLoginMenu(): RichMenuObject {
       },
       // จองกิจกรรม / รายละเอียดกิจกรรม (บนขวา)
       {
-        bounds: { x: 1250, y: 0, width: 1250, height: 843 },
+        bounds: { x: 1400, y: 0, width: 1100, height: 843 },
         action: {
           type: 'uri',
           uri: `${liffUrl}/activities`,
