@@ -202,7 +202,7 @@ export async function updateRegistration(lineUserId: string, input: UpdateRegist
   }
 
   // 2. If sessions are being updated
-  if (selectedSessionIds && selectedSessionIds.length > 0) {
+  if (selectedSessionIds !== undefined) {
     // Fetch new sessions
     const newSessions = await prisma.session.findMany({
       where: { id: { in: selectedSessionIds } },

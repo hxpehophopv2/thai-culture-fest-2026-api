@@ -26,6 +26,7 @@ interface RichMenuArea {
     type: string;
     uri?: string;
     text?: string;
+    data?: string;
     label?: string;
   };
 }
@@ -115,8 +116,8 @@ function buildBeforeLoginMenu(): RichMenuObject {
       {
         bounds: { x: 0, y: 843, width: 1250, height: 843 },
         action: {
-          type: 'message',
-          text: TRAVEL_MESSAGE,
+          type: 'postback',
+          data: 'action=travel',
           label: 'การเดินทาง'
         }
       },
@@ -124,8 +125,8 @@ function buildBeforeLoginMenu(): RichMenuObject {
       {
         bounds: { x: 1250, y: 843, width: 1250, height: 843 },
         action: {
-          type: 'message',
-          text: CONTACT_MESSAGE,
+          type: 'postback',
+          data: 'action=contact',
           label: 'ติดต่อสอบถาม'
         }
       }
@@ -179,8 +180,8 @@ function buildAfterLoginMenu(): RichMenuObject {
       {
         bounds: { x: 0, y: 843, width: 1250, height: 843 },
         action: {
-          type: 'message',
-          text: TRAVEL_MESSAGE,
+          type: 'postback',
+          data: 'action=travel',
           label: 'การเดินทาง'
         }
       },
@@ -188,8 +189,8 @@ function buildAfterLoginMenu(): RichMenuObject {
       {
         bounds: { x: 1250, y: 843, width: 1250, height: 843 },
         action: {
-          type: 'message',
-          text: CONTACT_MESSAGE,
+          type: 'postback',
+          data: 'action=contact',
           label: 'ติดต่อสอบถาม'
         }
       }

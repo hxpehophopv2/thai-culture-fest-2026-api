@@ -13,6 +13,7 @@ import { checkinRoutes } from './routes/checkin.js';
 import { schoolRoutes } from './routes/school.js';
 import { adminRoutes } from './routes/admin.js';
 import { richMenuRoutes } from './routes/richmenu.js';
+import { lineWebhookRoutes } from './routes/line-webhook.js';
 
 export async function buildServer() {
   const app = Fastify({
@@ -76,6 +77,8 @@ export async function buildServer() {
   });
 
   // ─── Routes ─────────────────────────────────────────
+  // LINE Webhook must be registered first (separate scope with raw body parser)
+  await app.register(lineWebhookRoutes);
   await app.register(healthRoutes);
   await app.register(activityRoutes);
   await app.register(registrationRoutes);

@@ -123,7 +123,7 @@ export const updateRegistrationSchema = z.object({
   mediaConsent: z.literal(true).optional(),
 
   // Sessions (ถ้าส่งมา = replace ทั้งหมด)
-  selectedSessionIds: z.array(z.string().uuid()).min(1).optional()
+  selectedSessionIds: z.array(z.string().uuid()).optional()
 });
 
 // ─── Types ───────────────────────────────────────────────
