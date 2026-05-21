@@ -1,21 +1,6 @@
-/**
- * LINE Webhook Route
- * ─────────────────────────────────────────────────────────────
- *
- * รับ webhook events จาก LINE Messaging API
- * ปัจจุบันจัดการ postback events จากปุ่ม Rich Menu (การเดินทาง / ติดต่อสอบถาม)
- * โดยให้ OA เป็นคนตอบกลับ (reply) แทนที่จะเป็น user ส่งข้อความเอง
- *
- * ⚠️ ต้อง register ด้วย app.register() (ไม่ใช้ fastify-plugin)
- *    เพื่อให้ custom content-type parser ถูก scope ภายใน plugin นี้เท่านั้น
- *    ไม่ไปแทรก parser ของ routes อื่น
- */
-
 import type { FastifyInstance } from 'fastify';
 import { env } from '../lib/env.js';
 import crypto from 'crypto';
-
-// ─── Constants (ข้อความเดิมที่เคยใช้ใน message action) ────────
 
 const TRAVEL_MESSAGE = `📍 การเดินทางมายังงาน
 KMUTT ROOTED: Thai Sustainable Culture Fest 2026
@@ -43,7 +28,6 @@ KMUTT ROOTED: Thai Sustainable Culture Fest 2026
 โทรศัพท์: 093-9262583 (พั้นซ์)
 โทรศัพท์: 061-3960779 (เฟิร์น)`;
 
-// ─── Postback action → reply text mapping ────────────────────
 
 const POSTBACK_REPLIES: Record<string, string> = {
   'action=travel': TRAVEL_MESSAGE,
@@ -52,19 +36,33 @@ const POSTBACK_REPLIES: Record<string, string> = {
 
 // ─── LINE Signature Verification ─────────────────────────────
 
-function verifySignature(body: string, signature: string): boolean {
+function verifySignature(body: string, signature: string, logger?: any): boolean {
   const channelSecret = env.LINE_CHANNEL_SECRET;
-  if (!channelSecret) return false;
+  if (!channelSecret) {
+    if (logger) logger.error('[Webhook] LINE_CHANNEL_SECRET is not set');
+    return false;
+  }
 
   const hash = crypto
-    .createHmac('SHA256', channelSecret)
+    .createHmac('sha256', channelSecret)
     .update(body)
     .digest('base64');
 
-  return hash === signature;
-}
+  const match = hash === signature;
+  if (!match && logger) {
+    logger.error({
+      msg: '[Webhook] Signature verification failed',
+      secretLength: channelSecret.length,
+      secretPrefix: channelSecret.slice(0, 4) + '...' + channelSecret.slice(-4),
+      receivedSignature: signature,
+      calculatedHash: hash,
+      rawBodyLength: body.length,
+      rawBodyPreview: body.slice(0, 200)
+    });
+  }
 
-// ─── Reply Helper ────────────────────────────────────────────
+  return match;
+}
 
 async function replyMessage(replyToken: string, text: string): Promise<void> {
   const token = env.LINE_CHANNEL_ACCESS_TOKEN;
@@ -91,10 +89,7 @@ async function replyMessage(replyToken: string, text: string): Promise<void> {
   }
 }
 
-// ─── Plugin (encapsulated — custom parser stays in this scope) ──
-
 export async function lineWebhookRoutes(app: FastifyInstance) {
-  // Override JSON parser for this scope only — LINE requires raw body for signature
   app.addContentTypeParser(
     'application/json',
     { parseAs: 'string' },
@@ -103,20 +98,34 @@ export async function lineWebhookRoutes(app: FastifyInstance) {
     }
   );
 
-  /**
-   * POST /api/line/webhook
-   *
-   * LINE Messaging API Webhook endpoint
-   * Handles postback events from Rich Menu buttons
-   */
   app.post('/api/line/webhook', async (request, reply) => {
     const signature = request.headers['x-line-signature'] as string;
     const rawBody = request.body as string;
 
     // Verify signature
     if (env.LINE_CHANNEL_SECRET && signature) {
-      if (!verifySignature(rawBody, signature)) {
-        return reply.status(403).send({ ok: false, error: 'Invalid signature' });
+      const channelSecret = env.LINE_CHANNEL_SECRET;
+      const hash = crypto
+        .createHmac('sha256', channelSecret)
+        .update(rawBody)
+        .digest('base64');
+      
+      if (hash !== signature) {
+        const debugInfo = {
+          receivedSignature: signature,
+          calculatedHash: hash,
+          bodyLength: rawBody?.length,
+          bodyType: typeof rawBody,
+          bodyPreview: rawBody?.slice?.(0, 200),
+          secretLength: channelSecret?.length,
+          secretFirstFour: channelSecret?.slice?.(0, 4)
+        };
+        app.log.error({ msg: '[Webhook] Signature verification failed', ...debugInfo });
+        return reply.status(403).send({ 
+          ok: false, 
+          error: 'Invalid signature',
+          debug: debugInfo
+        });
       }
     }
 
@@ -129,7 +138,6 @@ export async function lineWebhookRoutes(app: FastifyInstance) {
 
     const events = body.events || [];
 
-    // Process events
     for (const event of events) {
       if (event.type === 'postback') {
         const postbackData = event.postback?.data;
@@ -137,7 +145,6 @@ export async function lineWebhookRoutes(app: FastifyInstance) {
         const replyText = POSTBACK_REPLIES[postbackData];
 
         if (replyText && replyToken) {
-          // Fire and forget — don't block the 200 response
           replyMessage(replyToken, replyText).catch(err => {
             console.error('[Webhook] Reply error:', err);
           });

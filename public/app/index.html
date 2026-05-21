@@ -1,19 +1,87 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/assets/posterHero-CokeNKRE.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thai Sustainable Culture Fest 2026</title>
+    <script type="module" crossorigin src="/assets/index-BGYEbpUw.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/LangToggle-CZqDqnwE.js">
+    <link rel="stylesheet" crossorigin href="/assets/LangToggle-DeixAMKK.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-CFAr4tCC.css">
+  </head>
 
-<head>
-  <meta charset="UTF-8">
-  <link rel="icon" href="/assets/posterHero-STm5hJLx.png">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Thai Sustainable Culture Fest 2026</title>
-  <script type="module" crossorigin src="/assets/index-HfWS6fPS.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/api-b5wWPB3F.js">
-  <link rel="stylesheet" crossorigin href="/assets/api-DeixAMKK.css">
-  <link rel="stylesheet" crossorigin href="/assets/index-CZX4oI3A.css">
-</head>
+  <body>
+    <div id="app">
+      <div id="initial-loader">
+        <div class="loader-anim"></div>
+        <p class="loading-text">กำลังตรวจสอบข้อมูล...</p>
+      </div>
+    </div>
 
-<body>
-  <div id="app"></div>
-</body>
+    <style>
+      #initial-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: 99999;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        color: #fbfdfe;
+        background: #3182de;
+        background: -webkit-linear-gradient(
+          180deg,
+          rgba(49, 130, 222, 1) 0%,
+          rgba(42, 105, 168, 1) 50%,
+          rgba(24, 42, 125, 1) 100%
+        );
+        background: -moz-linear-gradient(
+          180deg,
+          rgba(49, 130, 222, 1) 0%,
+          rgba(42, 105, 168, 1) 50%,
+          rgba(24, 42, 125, 1) 100%
+        );
+        background: linear-gradient(
+          180deg,
+          rgba(49, 130, 222, 1) 0%,
+          rgba(42, 105, 168, 1) 50%,
+          rgba(24, 42, 125, 1) 100%
+        );
+        font-family: sans-serif;
+      }
 
+      #initial-loader .loader-anim {
+        width: 150px;
+        height: 75px;
+        background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 150"><path fill="none" stroke="%23FBFDFE" stroke-width="16" stroke-linecap="round" stroke-dasharray="300 385" stroke-dashoffset="0" d="M275 75c0 31-27 50-50 50-58 0-92-100-150-100-28 0-50 22-50 50s23 50 50 50c58 0 92-100 150-100 24 0 50 19 50 50Z"><animate attributeName="stroke-dashoffset" calcMode="spline" dur="2" values="685;-685" keySplines="0 0 1 1" repeatCount="indefinite"></animate></path></svg>');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+        margin-bottom: 1rem;
+      }
+
+      #initial-loader .loading-text {
+        font-weight: bold;
+        letter-spacing: 0.5px;
+        margin: 0;
+        animation: pulse-text-init 1.5s infinite ease-in-out alternate;
+      }
+
+      @keyframes pulse-text-init {
+        0% {
+          opacity: 0.5;
+          transform: scale(0.98);
+        }
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+    </style>
+
+  </body>
 </html>
