@@ -12,6 +12,7 @@ export interface StudentInput {
   studentCode?: string;
   classRoom?: string;
   schoolName?: string;
+  dateOfBirth?: string | Date;
 }
 
 /** ผลลัพธ์การ parse Excel */
@@ -48,6 +49,51 @@ export interface StudentBookingInput {
  * @param fileBuffer - Buffer ของไฟล์ Excel
  * @returns ผลลัพธ์: valid students + errors
  */
+export function parseExcelDate(value: any): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) {
+    let year = value.getFullYear();
+    if (year > 2400) {
+      value.setFullYear(year - 543);
+    }
+    return value;
+  }
+  const str = String(value).trim();
+  if (!str) return null;
+
+  // รูปแบบ YYYY-MM-DD
+  let match = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (match) {
+    let year = parseInt(match[1]);
+    if (year > 2400) year -= 543;
+    const month = parseInt(match[2]) - 1;
+    const day = parseInt(match[3]);
+    return new Date(Date.UTC(year, month, day));
+  }
+
+  // รูปแบบ DD/MM/YYYY
+  match = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (match) {
+    let year = parseInt(match[3]);
+    if (year > 2400) year -= 543;
+    const month = parseInt(match[2]) - 1;
+    const day = parseInt(match[1]);
+    return new Date(Date.UTC(year, month, day));
+  }
+
+  const parsed = Date.parse(str);
+  if (!isNaN(parsed)) {
+    const d = new Date(parsed);
+    let year = d.getFullYear();
+    if (year > 2400) {
+      d.setFullYear(year - 543);
+    }
+    return d;
+  }
+
+  return null;
+}
+
 export async function parseStudentExcel(
   fileBuffer: Buffer | Readable
 ): Promise<ExcelParseResult> {
@@ -78,6 +124,7 @@ export async function parseStudentExcel(
     const studentCode = String(row.getCell(3).value ?? '').trim() || undefined;
     const classRoom = String(row.getCell(4).value ?? '').trim() || undefined;
     const schoolName = String(row.getCell(5).value ?? '').trim() || undefined;
+    const dateOfBirth = parseExcelDate(row.getCell(6).value) || undefined;
 
     // Validate
     if (!firstName) {
@@ -89,7 +136,7 @@ export async function parseStudentExcel(
       return;
     }
 
-    valid.push({ rowNumber, firstName, lastName, studentCode, classRoom, schoolName });
+    valid.push({ rowNumber, firstName, lastName, studentCode, classRoom, schoolName, dateOfBirth });
   });
 
   return { valid, errors, totalRows };
@@ -132,6 +179,7 @@ export async function createStudents(
         studentCode: s.studentCode ?? null,
         classRoom: s.classRoom ?? null,
         schoolName: s.schoolName ?? null,
+        dateOfBirth: s.dateOfBirth ? (s.dateOfBirth instanceof Date ? s.dateOfBirth : new Date(s.dateOfBirth)) : null,
         shortCode
       }
     });

@@ -103,8 +103,32 @@ async function main() {
       description: 'Opening Ceremony, Creative Thai Dance Performance "Roots of Thailand", Discussion: Science Hearts Thai Arts, Khon Performance: Battle Scene, and Suthaphirom Dance.',
       sortOrder: 6,
       sessions: [
-        { start: '14:00', end: '15:30', capacity: 50 }
+        { start: '14:00', end: '15:30', capacity: 70 }
       ]
+    },
+    {
+      name: 'IDENTITY ZONE',
+      nameTh: 'IDENTITY ZONE',
+      zone: 'IDENTITY',
+      description: 'Traditional clothing, Photo Booth',
+      sortOrder: 7,
+      sessions: []
+    },
+    {
+      name: 'KHON ZONE',
+      nameTh: 'KHON ZONE',
+      zone: 'KHON',
+      description: 'Khon Exhibition',
+      sortOrder: 8,
+      sessions: []
+    },
+    {
+      name: 'PLAY ZONE',
+      nameTh: 'PLAY ZONE',
+      zone: 'PLAY',
+      description: 'Traditional Thai folk games',
+      sortOrder: 9,
+      sessions: []
     }
   ];
 
@@ -152,6 +176,13 @@ async function main() {
             activityId: activity.id,
             startTime,
             endTime,
+            capacity: sess.capacity
+          }
+        });
+      } else {
+        await prisma.session.update({
+          where: { id: existing.id },
+          data: {
             capacity: sess.capacity
           }
         });

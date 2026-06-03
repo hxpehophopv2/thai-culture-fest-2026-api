@@ -439,6 +439,8 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
   // 6. หา booking ที่ตรงกับฐานปัจจุบัน
   const matchedSlot = slots.find(s => s.activityId === actualActivityId);
 
+  const isWalkinZone = ['IDENTITY', 'KHON', 'PLAY'].includes(staffSession.activity.zone);
+
   // 7. Determine result
   let result: ScanResultType;
   let message: string;
@@ -460,6 +462,10 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
         endTime: matchedSlot.endTime.toISOString()
       };
     }
+  } else if (isWalkinZone) {
+    // ✅ ฐานไม่ต้องจอง (Walk-in) -> ผ่านฉลุยสำเร็จทันที
+    result = 'checked_in';
+    message = `✅ เช็คอินสำเร็จ — ยินดีต้อนรับเข้าสู่ ${staffSession.activity.nameTh}`;
   } else if (matchedSlot) {
     // มี booking ตรงฐานนี้ → เช็คเวลา
     const isOnTime = isWithinTimeWindow(matchedSlot.startTime, matchedSlot.endTime, now);
@@ -504,7 +510,9 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
       studentId: parsed.type === 'student' ? parsed.id : undefined,
       bookingId: bookingId ?? undefined,
       actualActivityId,
-      expectedActivityId: matchedSlot?.activityId ?? (slots.length > 0 ? slots[0].activityId : undefined),
+      expectedActivityId: isWalkinZone
+        ? actualActivityId
+        : (matchedSlot?.activityId ?? (slots.length > 0 ? slots[0].activityId : undefined)),
       expectedSessionStart: matchedSlot
         ? matchedSlot.startTime
         : undefined,

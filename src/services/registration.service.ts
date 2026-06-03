@@ -350,7 +350,7 @@ export async function getParticipantByLineUserId(lineUserId: string) {
 }
 
 async function getParticipantWithBookings(participantId: string) {
-  return prisma.participant.findUnique({
+  const participant = await prisma.participant.findUnique({
     where: { id: participantId },
     include: {
       bookings: {
@@ -368,6 +368,55 @@ async function getParticipantWithBookings(participantId: string) {
       }
     }
   });
+
+  if (!participant) return null;
+
+  // ─── Query scan_logs เพื่อดูว่าเข้าฐานไหนแล้วบ้าง ────
+  const checkedInScans = await prisma.scanLog.findMany({
+    where: {
+      participantId,
+      result: 'checked_in'
+    },
+    select: {
+      actualActivityId: true,
+      actualActivity: {
+        select: { sortOrder: true, zone: true }
+      }
+    }
+  });
+
+  // Map sortOrder → zone code ที่ frontend ใช้
+  const sortOrderToCode: Record<number, string> = {
+    1: 'LAB1', 2: 'LAB2', 3: 'LAB3', 4: 'LAB4', 5: 'LAB5', 6: 'STG',
+    7: 'IDY', 8: 'KHN', 9: 'PLY'
+  };
+
+  const checkedInActivityIds = new Set(checkedInScans.map(s => s.actualActivityId));
+
+  const checkIns = [...new Set(
+    checkedInScans
+      .map(s => sortOrderToCode[s.actualActivity.sortOrder])
+      .filter(Boolean)
+  )];
+
+  // เพิ่ม isAttended ให้แต่ละ booking และ map name -> nameEn
+  const bookingsWithAttendance = participant.bookings.map((b: any) => ({
+    ...b,
+    session: {
+      ...b.session,
+      activity: {
+        ...b.session.activity,
+        nameEn: b.session.activity.name
+      }
+    },
+    isAttended: checkedInActivityIds.has(b.session.activity.id)
+  }));
+
+  return {
+    ...participant,
+    bookings: bookingsWithAttendance,
+    checkIns
+  };
 }
 
 // ─── Cancel Booking ──────────────────────────────────────

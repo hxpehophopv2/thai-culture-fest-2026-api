@@ -5,4 +5,17 @@ dist/
 coverage/
 *.log
 *.zip
+*.xlsx
+*.csv
 
+# Staging & deployment builds
+/deploy-stage/
+/deploy-clean.zip
+
+# Prisma test / utility scripts
+/prisma/gen-sample-qr.ts
+/prisma/gen-template-v2.ts
+/prisma/import-students-v2.ts
+/prisma/list-activities.ts
+/prisma/find-teacher.ts
+/prisma/export-sample.ts

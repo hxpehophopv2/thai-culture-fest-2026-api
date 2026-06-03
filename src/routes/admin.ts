@@ -7,7 +7,7 @@ import {
   adminCreateBooking, adminForceBooking, adminMoveBooking, adminCancelBooking,
   adminForceCheckin, adminDeleteCheckin, getCheckinHistory,
   regenerateQr, updateSession, getLiveActivityStatus,
-  getDashboardStats, exportParticipantsCsv, exportScanLogsCsv,
+  getDashboardStats, exportParticipantsCsv, exportScanLogsCsv, exportRawRegistrationsCsv,
   generateBoothCode, listBoothCodes, deleteBoothCode,
   AdminError
 } from '../services/admin.service.js';
@@ -47,6 +47,15 @@ export async function adminRoutes(app: FastifyInstance) {
     if (!username || !password) {
       return reply.status(400).send({ ok: false, error: { code: 'MISSING_FIELDS', message: 'Username and password required' } });
     }
+    console.log('[DEBUG LOGIN] Attempt:', {
+      receivedUser: username,
+      receivedUserLen: username?.length,
+      receivedPassLen: password?.length,
+      expectedUser: env.ADMIN_USERNAME,
+      expectedUserLen: env.ADMIN_USERNAME.length,
+      expectedPassLen: env.ADMIN_PASSWORD.length
+    });
+
     // Timing-safe compare to prevent timing attacks
     const userMatch = username.length === env.ADMIN_USERNAME.length &&
       timingSafeEqual(Buffer.from(username), Buffer.from(env.ADMIN_USERNAME));
@@ -245,6 +254,13 @@ export async function adminRoutes(app: FastifyInstance) {
     reply.header('Content-Type', 'text/csv; charset=utf-8');
     reply.header('Content-Disposition', 'attachment; filename="rooted_scanlogs.csv"');
     return reply.send(await exportScanLogsCsv());
+  });
+
+  app.get('/api/admin/export/raw', async (request, reply) => {
+    if (!await requireAdminAuth(request, reply)) return;
+    reply.header('Content-Type', 'text/csv; charset=utf-8');
+    reply.header('Content-Disposition', 'attachment; filename="rooted_raw_registrations.csv"');
+    return reply.send(await exportRawRegistrationsCsv());
   });
 
   // ─── Booth Code Management ───────────────────────────

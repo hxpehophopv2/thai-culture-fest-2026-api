@@ -213,6 +213,7 @@ model Student {
   studentCode String?  @map("student_code")   // เลขประจำตัวนักเรียน
   classRoom   String?  @map("class_room")     // ห้อง เช่น "ป.4/2"
   schoolName  String?  @map("school_name")    // ชื่อโรงเรียน
+  dateOfBirth DateTime? @map("date_of_birth") @db.Date
 
   // Short Code สำหรับ manual check-in (5 ตัวอักษร เช่น "B7X2P")
   shortCode   String?  @unique @map("short_code")

@@ -74,7 +74,13 @@ function navigate(page) {
   document.getElementById(`page-${page}`)?.classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === page));
 
-  const loaders = { dashboard: loadDashboard, participants: () => loadParticipants(1), live: loadLive, boothcodes: loadBoothCodes };
+  const loaders = {
+    dashboard: loadDashboard,
+    participants: () => loadParticipants(1),
+    live: loadLive,
+    boothcodes: loadBoothCodes,
+    import: loadImportPage
+  };
   loaders[page]?.();
   lucide.createIcons();
 }
@@ -130,6 +136,38 @@ async function loadDashboard() {
         <div class="sub">Total scans: ${d.checkin.totalScans}</div>
       </div>
     `;
+
+    // Render Participant Types Summary Cards
+    const typesEl = document.getElementById('dashboard-types');
+    if (typesEl) {
+      typesEl.innerHTML = `
+        <div class="stat-card" style="border-left:3px solid #6366f1">
+          <div class="label">Students</div>
+          <div class="value" style="font-size:1.4rem;margin-top:2px">${d.types ? d.types.studentTotal : 0}</div>
+          <div class="sub">LIFF + Imported</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #10b981">
+          <div class="label">Staffs</div>
+          <div class="value" style="font-size:1.4rem;margin-top:2px">${d.types ? d.types.staffTotal : 0}</div>
+          <div class="sub">Event staff</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #f59e0b">
+          <div class="label">Teachers</div>
+          <div class="value" style="font-size:1.4rem;margin-top:2px">${d.types ? d.types.teacherTotal : 0}</div>
+          <div class="sub">School teachers</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #3b82f6">
+          <div class="label">General Public</div>
+          <div class="value" style="font-size:1.4rem;margin-top:2px">${d.types ? d.types.publicTotal : 0}</div>
+          <div class="sub">General public</div>
+        </div>
+        <div class="stat-card" style="border-left:3px solid #ec4899">
+          <div class="label">Special Guests</div>
+          <div class="value" style="font-size:1.4rem;margin-top:2px">${d.types ? d.types.guestTotal : 0}</div>
+          <div class="sub">VIP guests</div>
+        </div>
+      `;
+    }
 
     // Render secondary stats (bookings + capacity)
     const secondaryEl = document.getElementById('dashboard-secondary');
@@ -640,3 +678,299 @@ async function delBoothCode(activityId) {
     loadBoothCodes();
   } catch (err) { toast(err.message, 'error'); }
 }
+
+// ─── Import Students V2 ──────────────────────────────
+let importState = {
+  teachers: [],
+  parsedData: null,
+  selectedTeacherId: null
+};
+
+async function loadImportPage() {
+  resetImportForm();
+  try {
+    const { data: teachers } = await api('GET', '/api/admin/teachers');
+    importState.teachers = teachers;
+    
+    const select = document.getElementById('import-teacher-select');
+    select.innerHTML = '<option value="">-- Select Teacher --</option>';
+    
+    teachers.forEach(t => {
+      const opt = document.createElement('option');
+      opt.value = t.id;
+      opt.textContent = `${t.firstName} ${t.lastName} (${t.organization || 'No School'}) — [${t.studentCount} students]`;
+      select.appendChild(opt);
+    });
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
+function resetImportForm() {
+  document.getElementById('import-excel-file').value = '';
+  document.getElementById('import-teacher-select').value = '';
+  document.getElementById('import-preview-panel').classList.add('hidden');
+  document.getElementById('import-result-panel').classList.add('hidden');
+  importState.parsedData = null;
+  importState.selectedTeacherId = null;
+}
+
+async function previewImportFile() {
+  const teacherId = document.getElementById('import-teacher-select').value;
+  const fileInput = document.getElementById('import-excel-file');
+  
+  if (!teacherId) {
+    return toast('กรุณาเลือกครูผู้รับผิดชอบ', 'error');
+  }
+  if (!fileInput.files.length) {
+    return toast('กรุณาเลือกไฟล์ Excel (.xlsx)', 'error');
+  }
+
+  const btn = document.getElementById('btn-import-preview');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Parsing...';
+
+  try {
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const token = sessionStorage.getItem('rooted_admin_token');
+    const res = await fetch('/api/admin/import/preview', {
+      method: 'POST',
+      headers: {
+        'X-Admin-Token': token || ''
+      },
+      body: formData
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error?.message || 'การอ่านไฟล์ล้มเหลว');
+    }
+
+    const result = data.data;
+    importState.parsedData = result.valid;
+    importState.selectedTeacherId = teacherId;
+
+    // Show preview panel
+    document.getElementById('import-preview-panel').classList.remove('hidden');
+    document.getElementById('import-result-panel').classList.add('hidden');
+
+    // Fill counts
+    document.getElementById('preview-total-rows').textContent = result.totalRows;
+    document.getElementById('preview-valid-rows').textContent = result.valid.length;
+    document.getElementById('preview-error-rows').textContent = result.errors.length;
+
+    // Fill Valid Table
+    const validTbody = document.getElementById('import-preview-valid-tbody');
+    if (result.valid.length === 0) {
+      validTbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">ไม่พบข้อมูลนักเรียนที่ถูกต้อง</td></tr>';
+    } else {
+      validTbody.innerHTML = result.valid.map(row => {
+        const selections = row.activitySelections
+          .filter(sel => sel.selectedTime)
+          .map(sel => `<span class="badge badge-info" style="font-size:10px;margin-right:2px">${esc(sel.activityName)} (${sel.selectedTime})</span>`)
+          .join('') || '—';
+        return `<tr>
+          <td>${row.rowNumber}</td>
+          <td><strong>${esc(row.firstName)} ${esc(row.lastName)}</strong></td>
+          <td>${esc(row.studentCode) || '—'}</td>
+          <td>${esc(row.classRoom) || '—'}</td>
+          <td>${esc(row.schoolName) || '—'}</td>
+          <td>${selections}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Fill Error Table
+    const errorTbody = document.getElementById('import-preview-error-tbody');
+    const errorsContainer = document.getElementById('import-errors-container');
+    if (result.errors.length === 0) {
+      errorsContainer.classList.add('hidden');
+    } else {
+      errorsContainer.classList.remove('hidden');
+      errorTbody.innerHTML = result.errors.map(err => `
+        <tr>
+          <td style="color:#b91c1c;font-weight:bold">${err.rowNumber}</td>
+          <td style="color:#ef4444">${esc(err.message)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Fill Booking Summary
+    const summaryDiv = document.getElementById('preview-booking-summary');
+    summaryDiv.innerHTML = result.bookingSummary.map(bs => `
+      <div style="background:#f3f4f6;padding:8px;border-radius:6px;text-align:center;border:1px solid #e5e7eb">
+        <div style="font-size:11px;color:#4b5563;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(bs.activity)}">${esc(bs.activity)}</div>
+        <div style="font-size:18px;font-weight:bold;color:#1e3a8a">${bs.count}</div>
+      </div>
+    `).join('');
+
+    toast(`ดึงข้อมูลสำเร็จ: พบนักเรียน ${result.valid.length} คน`);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    lucide.createIcons();
+  }
+}
+
+async function confirmImport() {
+  if (!importState.parsedData || !importState.parsedData.length || !importState.selectedTeacherId) {
+    return toast('ไม่มีข้อมูลสำหรับ import', 'error');
+  }
+
+  const teacher = importState.teachers.find(t => t.id === importState.selectedTeacherId);
+  const teacherName = teacher ? `${teacher.firstName} ${teacher.lastName}` : 'Teacher';
+
+  if (!confirm(`ต้องการนำเข้าข้อมูลนักเรียน ${importState.parsedData.length} คน ไปยังครู "${teacherName}" หรือไม่?`)) {
+    return;
+  }
+
+  const btn = document.getElementById('btn-import-confirm');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Importing...';
+
+  try {
+    const generateQr = document.getElementById('import-generate-qr').checked;
+    const res = await api('POST', '/api/admin/import/confirm', {
+      teacherId: importState.selectedTeacherId,
+      students: importState.parsedData,
+      generateQr
+    });
+
+    const result = res.data;
+    
+    // Fill result stats
+    document.getElementById('result-students-created').textContent = result.studentsCreated;
+    document.getElementById('result-bookings-created').textContent = result.bookingsCreated;
+    document.getElementById('result-qr-generated').textContent = result.qrCodesGenerated;
+
+    // Show/hide bulk QR section based on whether QRs were generated
+    const qrSection = document.getElementById('import-result-qr-section');
+    if (result.qrCodesGenerated > 0) {
+      qrSection.classList.remove('hidden');
+    } else {
+      qrSection.classList.add('hidden');
+    }
+
+    // Fill Result Errors / Warnings
+    const resultErrorsDiv = document.getElementById('import-result-errors-section');
+    const resultErrorsTbody = document.getElementById('import-result-errors-tbody');
+    if (result.errors && result.errors.length > 0) {
+      resultErrorsDiv.classList.remove('hidden');
+      resultErrorsTbody.innerHTML = result.errors.map(err => `
+        <tr>
+          <td>${err.rowNumber}</td>
+          <td><strong>${esc(err.student)}</strong></td>
+          <td style="color:#b91c1c">${esc(err.message)}</td>
+        </tr>
+      `).join('');
+    } else {
+      resultErrorsDiv.classList.add('hidden');
+    }
+
+    // Hide preview panel, show result panel
+    document.getElementById('import-preview-panel').classList.add('hidden');
+    document.getElementById('import-result-panel').classList.remove('hidden');
+
+    toast(`นำเข้าสำเร็จ! สร้างนักเรียน ${result.studentsCreated} คน`);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    lucide.createIcons();
+  }
+}
+
+async function downloadTeacherQrCodes() {
+  const teacherId = importState.selectedTeacherId;
+  if (!teacherId) return toast('ครูผู้รับผิดชอบไม่ถูกต้อง', 'error');
+
+  const teacher = importState.teachers.find(t => t.id === teacherId);
+  const teacherName = teacher ? `${teacher.firstName}_${teacher.lastName}`.replace(/\s+/g, '_') : 'teacher';
+
+  const btn = document.getElementById('btn-download-bulk-qr');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Downloading QRs...';
+
+  try {
+    const res = await api('GET', `/api/admin/students/${teacherId}/qr-codes`);
+    const qrs = res.data;
+
+    if (!qrs || qrs.length === 0) {
+      throw new Error('ไม่พบข้อมูล QR Code สำหรับดาวน์โหลด');
+    }
+
+    toast('กำลังสร้างไฟล์ ZIP...');
+
+    const zip = new JSZip();
+    const folder = zip.folder(`QR_Codes_${teacherName}`);
+
+    qrs.forEach((qr, idx) => {
+      const dataUrl = qr.dataUrl;
+      const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "");
+      
+      const filename = `${qr.studentName}_${qr.shortCode}.png`.replace(/[\/\\?%*:|"<>\s]/g, '_');
+      folder.file(filename, base64Data, { base64: true });
+    });
+
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rooted_students_qr_${teacherName}.zip`;
+    a.click();
+    
+    URL.revokeObjectURL(url);
+    toast('ดาวน์โหลดไฟล์ ZIP สำเร็จ!');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    lucide.createIcons();
+  }
+}
+
+async function downloadTemplateFile() {
+  const btn = document.getElementById('btn-download-template');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = 'Downloading...';
+
+  try {
+    const token = sessionStorage.getItem('rooted_admin_token');
+    const res = await fetch('/api/admin/import/template', {
+      headers: { 'X-Admin-Token': token || '' }
+    });
+    
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error?.message || 'ดาวน์โหลดล้มเหลว');
+    }
+    
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'student_import_template_v2.xlsx';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('ดาวน์โหลดเทมเพลตสำเร็จ');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+    lucide.createIcons();
+  }
+}
+
