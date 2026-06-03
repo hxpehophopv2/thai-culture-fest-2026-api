@@ -702,7 +702,8 @@ export async function getDashboardStats() {
   const [participantCount, studentCount, bookingCount, confirmedBookings,
          sessionStats, scanLogCount, checkedInCount,
          walkinCount,
-         uniqueParticipantAttendees, uniqueStudentAttendees] = await Promise.all([
+         uniqueParticipantAttendees, uniqueStudentAttendees,
+         studentPartCount, teacherPartCount, staffPartCount, publicPartCount, guestPartCount] = await Promise.all([
     prisma.participant.count(),
     prisma.student.count(),
     prisma.booking.count(),
@@ -722,7 +723,12 @@ export async function getDashboardStats() {
       where: { result: 'checked_in', studentId: { not: null } },
       select: { studentId: true },
       distinct: ['studentId']
-    })
+    }),
+    prisma.participant.count({ where: { participantType: 'STUDENT' } }),
+    prisma.participant.count({ where: { participantType: 'TEACHER' } }),
+    prisma.participant.count({ where: { participantType: 'STAFF' } }),
+    prisma.participant.count({ where: { participantType: 'GENERAL_PUBLIC' } }),
+    prisma.participant.count({ where: { participantType: 'GUEST' } })
   ]);
 
   const totalRegistered = participantCount + studentCount;
@@ -739,6 +745,14 @@ export async function getDashboardStats() {
       uniqueAttendees,           // คนที่มาจริง (เคย check-in อย่างน้อย 1 ฐาน)
       notYetArrived: totalRegistered - uniqueAttendees,
       attendanceRate             // % คนมาจริง vs ลงทะเบียน
+    },
+    // ─── Breakdown by type (สรุปแต่ละประเภท) ───
+    types: {
+      studentTotal: studentCount + studentPartCount,
+      staffTotal: staffPartCount,
+      teacherTotal: teacherPartCount,
+      publicTotal: publicPartCount,
+      guestTotal: guestPartCount
     },
     // ─── Activity Bookings ───
     bookings: {
@@ -796,6 +810,61 @@ export async function exportScanLogsCsv() {
   }).join('\n');
 
   return '\uFEFF' + header + rows;
+}
+
+/** สร้าง CSV สำหรับข้อมูลดิบทั้งหมด (ทั้งผู้เข้าร่วม LIFF และนักเรียนนำเข้า) */
+export async function exportRawRegistrationsCsv() {
+  const [participants, students] = await Promise.all([
+    prisma.participant.findMany({
+      include: {
+        bookings: {
+          where: { status: 'CONFIRMED' },
+          include: { session: { include: { activity: { select: { nameTh: true } } } } }
+        },
+        scanLogs: {
+          where: { result: 'checked_in' },
+          include: { actualActivity: { select: { nameTh: true } } }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
+    }),
+    prisma.student.findMany({
+      include: {
+        teacher: { select: { firstName: true, lastName: true } },
+        bookings: {
+          where: { status: 'CONFIRMED' },
+          include: { session: { include: { activity: { select: { nameTh: true } } } } }
+        },
+        scanLogs: {
+          where: { result: 'checked_in' },
+          include: { actualActivity: { select: { nameTh: true } } }
+        }
+      },
+      orderBy: { createdAt: 'asc' }
+    })
+  ]);
+
+  const header = 'ID,Source,First Name,Last Name,Nickname,Date of Birth,Student Code,Class,Email,Phone,Type,Organization/School/Teacher,Short Code,Gate Checked-in,Bookings,Stamps,Created At\n';
+
+  const pRows = participants.map(p => {
+    const bookings = p.bookings.map(b => b.session.activity.nameTh).join(' | ');
+    const stamps = p.scanLogs.map(l => l.actualActivity.nameTh).join(' | ');
+    const gateCheckedIn = p.gateCheckedInAt ? p.gateCheckedInAt.toISOString() : 'No';
+    const dob = p.dateOfBirth ? p.dateOfBirth.toISOString().split('T')[0] : '';
+    return `"${p.id}","LIFF","${p.firstName}","${p.lastName}","${p.nickname}","${dob}","","","${p.email}","${p.phoneNumber}","${p.participantType}","${p.organization}","${p.shortCode || ''}","${gateCheckedIn}","${bookings}","${stamps}","${p.createdAt.toISOString()}"`;
+  });
+
+  const sRows = students.map(s => {
+    const bookings = s.bookings.map(b => b.session.activity.nameTh).join(' | ');
+    const stamps = s.scanLogs.map(l => l.actualActivity.nameTh).join(' | ');
+    const teacherName = s.teacher ? `${s.teacher.firstName} ${s.teacher.lastName}` : '';
+    const gateCheckedIn = s.gateCheckedInAt ? s.gateCheckedInAt.toISOString() : 'No';
+    const dob = s.dateOfBirth ? s.dateOfBirth.toISOString().split('T')[0] : '';
+    return `"${s.id}","Imported","${s.firstName}","${s.lastName}","","${dob}","${s.studentCode || ''}","${s.classRoom || ''}","","","STUDENT_IMPORTED","${s.schoolName || ''} (Teacher: ${teacherName})","${s.shortCode || ''}","${gateCheckedIn}","${bookings}","${stamps}","${s.createdAt.toISOString()}"`;
+  });
+
+  const allRows = [...pRows, ...sRows].join('\n');
+  return '\uFEFF' + header + allRows;
 }
 
 // ─── Booth Code Management ──────────────────────────────

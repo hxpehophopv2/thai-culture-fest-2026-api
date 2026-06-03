@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="/admin/style.css">
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
@@ -141,6 +142,9 @@
       <a class="nav-item" data-page="participants" onclick="navigate('participants')">
         <i data-lucide="users"></i> Participants
       </a>
+      <a class="nav-item" data-page="import" onclick="navigate('import')">
+        <i data-lucide="file-spreadsheet"></i> Import Students
+      </a>
       <a class="nav-item" data-page="bookings" onclick="navigate('bookings')">
         <i data-lucide="calendar-check"></i> Bookings
       </a>
@@ -177,6 +181,7 @@
         <button class="btn btn-outline btn-sm" onclick="loadDashboard()"><i data-lucide="refresh-cw" style="width:14px;height:14px"></i> Refresh</button>
       </div>
       <div class="stats-grid" id="dashboard-stats"></div>
+      <div class="stats-grid" id="dashboard-types" style="margin-top:-8px"></div>
       <div class="stats-grid" id="dashboard-secondary" style="grid-template-columns:repeat(2,1fr)"></div>
       <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-top:16px">
         <div class="panel">
@@ -186,6 +191,190 @@
         <div class="panel">
           <div class="panel-header"><h3>Attendance</h3></div>
           <div class="panel-body" style="height:280px"><canvas id="chart-attendance"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import Page -->
+    <div id="page-import" class="page hidden">
+      <div class="page-header">
+        <div>
+          <h2>Import Students (Excel V2)</h2>
+          <div class="subtitle">Upload template with student details and booked activities</div>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn btn-outline btn-sm" id="btn-download-template" onclick="downloadTemplateFile()">
+            <i data-lucide="download-cloud" style="width:14px;height:14px"></i> Download Template V2
+          </button>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-bottom:16px">
+        <div class="panel-header"><h3>1. Select Teacher & Upload Excel</h3></div>
+        <div class="panel-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+            <div class="form-group">
+              <label for="import-teacher-select">Teacher (ครูผู้รับผิดชอบ) *</label>
+              <select id="import-teacher-select">
+                <option value="">-- Select Teacher --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="import-excel-file">Excel File (.xlsx) *</label>
+              <input type="file" id="import-excel-file" accept=".xlsx" style="padding:4px">
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button class="btn btn-primary" id="btn-import-preview" onclick="previewImportFile()">
+              <i data-lucide="eye" style="width:14px;height:14px"></i> Parse & Preview
+            </button>
+            <button class="btn btn-outline" id="btn-import-reset" onclick="resetImportForm()">Clear</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview Panel -->
+      <div id="import-preview-panel" class="panel hidden" style="margin-bottom:16px">
+        <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center">
+          <h3>2. Preview Data</h3>
+          <span id="import-preview-status" class="badge badge-info">Parsed</span>
+        </div>
+        <div class="panel-body">
+          <div class="stats-grid" id="import-preview-stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+            <div class="stat-card accent">
+              <div class="label">Total Rows</div>
+              <div class="value" id="preview-total-rows">0</div>
+              <div class="sub">Students in Excel</div>
+            </div>
+            <div class="stat-card success">
+              <div class="label">Valid Students</div>
+              <div class="value" id="preview-valid-rows">0</div>
+              <div class="sub">Ready to import</div>
+            </div>
+            <div class="stat-card warning">
+              <div class="label">Invalid / Error Rows</div>
+              <div class="value" id="preview-error-rows">0</div>
+              <div class="sub">Will be skipped</div>
+            </div>
+          </div>
+
+          <!-- Activity Booking Summary Chart or List -->
+          <div style="margin-bottom:16px" id="preview-booking-summary-section">
+            <h4 style="margin-bottom:8px">Activity Booking Summary</h4>
+            <div class="stats-grid" id="preview-booking-summary" style="grid-template-columns:repeat(6,1fr);gap:8px">
+              <!-- Dynamically populated activity counts -->
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns: 2fr 1fr;gap:16px">
+            <!-- Valid Rows Table -->
+            <div>
+              <h4 style="margin-bottom:8px">Ready to Import</h4>
+              <div class="table-wrap" style="max-height:350px">
+                <table>
+                  <thead>
+                    <tr>
+                      <th style="width:50px">Row</th>
+                      <th>Name</th>
+                      <th>Student Code</th>
+                      <th>Class</th>
+                      <th>School</th>
+                      <th>Selections</th>
+                    </tr>
+                  </thead>
+                  <tbody id="import-preview-valid-tbody">
+                    <!-- Valid rows -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Error Rows Table -->
+            <div id="import-errors-container" class="hidden">
+              <h4 style="color:#ef4444;margin-bottom:8px">Errors / Warnings</h4>
+              <div class="table-wrap" style="max-height:350px;border-color:rgba(239,68,68,0.2)">
+                <table style="border-collapse:collapse">
+                  <thead>
+                    <tr>
+                      <th style="background:#fef2f2;color:#b91c1c;width:60px">Row</th>
+                      <th style="background:#fef2f2;color:#b91c1c">Error Message</th>
+                    </tr>
+                  </thead>
+                  <tbody id="import-preview-error-tbody">
+                    <!-- Error rows -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-2 mt-3" style="border-top:1px solid var(--border);padding-top:16px">
+            <div class="form-group" style="margin-bottom:0;display:flex;align-items:center;gap:8px">
+              <input type="checkbox" id="import-generate-qr" checked style="width:16px;height:16px">
+              <label for="import-generate-qr" style="margin-bottom:0;cursor:pointer">Generate QR Codes automatically</label>
+            </div>
+            <div style="margin-left:auto" class="flex gap-2">
+              <button class="btn btn-success" id="btn-import-confirm" onclick="confirmImport()">
+                <i data-lucide="check" style="width:14px;height:14px"></i> Confirm & Import
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Result Panel -->
+      <div id="import-result-panel" class="panel hidden">
+        <div class="panel-header" style="background:#ecfdf5;border-bottom:1px solid #a7f3d0">
+          <h3 style="color:#065f46">🎉 Import Completed Successfully</h3>
+        </div>
+        <div class="panel-body">
+          <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+            <div class="stat-card success">
+              <div class="label">Students Created</div>
+              <div class="value" id="result-students-created">0</div>
+              <div class="sub">Added to database</div>
+            </div>
+            <div class="stat-card info">
+              <div class="label">Bookings Created</div>
+              <div class="value" id="result-bookings-created">0</div>
+              <div class="sub">Activity seats reserved</div>
+            </div>
+            <div class="stat-card accent">
+              <div class="label">QR Codes Generated</div>
+              <div class="value" id="result-qr-generated">0</div>
+              <div class="sub">Bulk zip ready</div>
+            </div>
+          </div>
+
+          <div id="import-result-qr-section" style="background:#f3f4f6;padding:16px;border-radius:8px;margin-bottom:16px" class="flex items-center justify-between">
+            <div>
+              <h4 style="margin-bottom:4px">🔑 Download Student QR Codes</h4>
+              <p class="text-sm text-muted">Generate a zip file containing QR codes for all students registered under this teacher.</p>
+            </div>
+            <button class="btn btn-primary" id="btn-download-bulk-qr" onclick="downloadTeacherQrCodes()">
+              <i data-lucide="qr-code" style="width:16px;height:16px"></i> Download All QR Codes
+            </button>
+          </div>
+
+          <div id="import-result-errors-section" class="hidden" style="margin-bottom:16px">
+            <h4 style="color:#b91c1c;margin-bottom:8px">⚠️ Import Warnings (Skipped Bookings/Students)</h4>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th style="width:60px">Row</th>
+                    <th>Student Name</th>
+                    <th>Warning Message</th>
+                  </tr>
+                </thead>
+                <tbody id="import-result-errors-tbody">
+                  <!-- Import errors -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <button class="btn btn-outline" onclick="resetImportForm()">Start New Import</button>
         </div>
       </div>
     </div>
@@ -339,6 +528,11 @@
           <div class="label">Participants</div>
           <div class="value" style="font-size:1.2rem"><i data-lucide="download" style="width:20px;height:20px;vertical-align:middle"></i> Download CSV</div>
           <div class="sub">All registered participants</div>
+        </div>
+        <div class="stat-card warning" style="cursor:pointer" onclick="downloadCsv('raw')">
+          <div class="label">Raw Data (All)</div>
+          <div class="value" style="font-size:1.2rem"><i data-lucide="download" style="width:20px;height:20px;vertical-align:middle"></i> Download CSV</div>
+          <div class="sub">Combined raw registrations (LIFF + Imported)</div>
         </div>
         <div class="stat-card info" style="cursor:pointer" onclick="downloadCsv('scanlogs')">
           <div class="label">Scan Logs</div>

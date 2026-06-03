@@ -50,7 +50,7 @@ export async function schoolRoutes(app: FastifyInstance) {
     const t = await requireTeacher(request, reply);
     if (!t) return;
     try {
-      const { students } = request.body as { students: Array<{ firstName: string; lastName: string; studentCode?: string; classRoom?: string; schoolName?: string }> };
+      const { students } = request.body as { students: Array<{ firstName: string; lastName: string; studentCode?: string; classRoom?: string; schoolName?: string; dateOfBirth?: string }> };
       if (!students?.length) return reply.status(400).send({ ok: false, error: { code: 'VALIDATION_ERROR', message: 'ต้องส่งข้อมูลนักเรียน' } });
       const result = await createStudents(t.participant.id, students);
       return reply.status(201).send({ ok: true, data: result });

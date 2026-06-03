@@ -12,6 +12,7 @@ import { bookingRoutes } from './routes/bookings.js';
 import { checkinRoutes } from './routes/checkin.js';
 import { schoolRoutes } from './routes/school.js';
 import { adminRoutes } from './routes/admin.js';
+import { adminImportRoutes } from './routes/admin-import.js';
 import { richMenuRoutes } from './routes/richmenu.js';
 import { lineWebhookRoutes } from './routes/line-webhook.js';
 
@@ -39,10 +40,14 @@ export async function buildServer() {
         return;
       }
 
-      // Dev mode: auto-allow ngrok and localhost
+      // Dev mode: auto-allow ngrok, localhost, loopback, and LAN IPs
       if (env.NODE_ENV === 'development' && (
         origin.endsWith('.ngrok-free.app') ||
-        origin.startsWith('http://localhost:')
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:') ||
+        origin.startsWith('http://192.168.') ||
+        origin.startsWith('http://10.') ||
+        origin.startsWith('http://172.')
       )) {
         callback(null, true);
         return;
@@ -86,6 +91,7 @@ export async function buildServer() {
   await app.register(checkinRoutes);
   await app.register(schoolRoutes);
   await app.register(adminRoutes);
+  await app.register(adminImportRoutes);
   await app.register(richMenuRoutes);
 
   // ─── Global error handler ──────────────────────────

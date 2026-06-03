@@ -75,7 +75,7 @@ function createShortHmac(data: string): string {
 /**
  * สร้าง QR data string จาก type + id
  */
-function buildQrData(type: 'p' | 's', id: string): string {
+export function buildQrData(type: 'p' | 's', id: string): string {
   const prefix = `R:${type}:${id}`;
   const hmac = createShortHmac(prefix);
   return `${prefix}:${hmac}`;
