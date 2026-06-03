@@ -64,9 +64,9 @@ describe('updateRegistrationSchema', () => {
     assert.deepEqual(updateRegistrationSchema.parse({ nickname: 'Mai' }), { nickname: 'Mai' });
   });
 
-  it('requires at least one session when selectedSessionIds is provided', () => {
+  it('accepts an empty session array when selectedSessionIds is provided to clear sessions', () => {
     const result = updateRegistrationSchema.safeParse({ selectedSessionIds: [] });
 
-    assert.equal(result.success, false);
+    assert.equal(result.success, true);
   });
 });
