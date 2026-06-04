@@ -307,4 +307,103 @@ export async function checkinRoutes(app: FastifyInstance) {
       });
     }
   });
+
+  // ─── GET /api/checkin/bookings ─────────────────────────
+  // ดึงรายชื่อผู้ลงทะเบียนล่วงหน้าสำหรับกิจกรรมของสตาฟที่ล็อกอินอยู่
+  app.get('/api/checkin/bookings', async (request, reply) => {
+    const session = await requireStaffSession(request, reply);
+    if (!session) return;
+
+    try {
+      const bookings = await prisma.booking.findMany({
+        where: {
+          session: {
+            activityId: session.activityId
+          },
+          status: 'CONFIRMED'
+        },
+        include: {
+          participant: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              nickname: true,
+              organization: true,
+              shortCode: true
+            }
+          },
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              schoolName: true,
+              classRoom: true,
+              shortCode: true
+            }
+          },
+          session: {
+            select: {
+              id: true,
+              startTime: true,
+              endTime: true
+            }
+          }
+        },
+        orderBy: [
+          { session: { startTime: 'asc' } },
+          { createdAt: 'asc' }
+        ]
+      });
+
+      // ดึง scan_logs ที่ checked_in ของกิจกรรมนี้ในวันงานมาด้วย เพื่อหาว่าใครเช็คอินแล้วบ้าง
+      const checkedInLogs = await prisma.scanLog.findMany({
+        where: {
+          actualActivityId: session.activityId,
+          result: 'checked_in'
+        },
+        select: {
+          participantId: true,
+          studentId: true,
+          scannedAt: true
+        }
+      });
+
+      const checkedInParticipants = new Set(checkedInLogs.map(log => log.participantId).filter(Boolean));
+      const checkedInStudents = new Set(checkedInLogs.map(log => log.studentId).filter(Boolean));
+
+      const list = bookings.map(b => {
+        const isParticipant = !!b.participant;
+        const person = isParticipant ? b.participant : b.student;
+        const isAttended = isParticipant 
+          ? checkedInParticipants.has(b.participantId)
+          : checkedInStudents.has(b.studentId);
+
+        return {
+          bookingId: b.id,
+          sessionId: b.session.id,
+          startTime: b.session.startTime,
+          endTime: b.session.endTime,
+          person: person ? {
+            id: person.id,
+            name: `${person.firstName} ${person.lastName}`,
+            nickname: isParticipant ? (person as any).nickname || '' : '',
+            org: isParticipant ? (person as any).organization : (person as any).schoolName || '',
+            classRoom: !isParticipant ? (person as any).classRoom || '' : '',
+            shortCode: person.shortCode
+          } : null,
+          isAttended
+        };
+      });
+
+      return reply.send({ ok: true, data: list });
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({
+        ok: false,
+        error: { code: 'UNEXPECTED_ERROR', message: 'เกิดข้อผิดพลาดในการดึงรายชื่อผู้ลงทะเบียน' }
+      });
+    }
+  });
 }

@@ -483,7 +483,7 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
       message = `✅ ถูกฐาน ถูกเวลา — ${matchedSlot.activityName}`;
     } else {
       result = 'wrong_time';
-      message = `⚠️ ถูกฐาน แต่ผิดเวลา — ควรเข้าเวลา ${formatTime(matchedSlot.startTime)}-${formatTime(matchedSlot.endTime)}`;
+      message = `⚠️ ถูกฐาน แต่ผิดเวลา — ควรเข้าเวลา ${formatTime(matchedSlot.startTime)}-${formatTime(matchedSlot.endTime)} (เจ้าหน้าที่สามารถกดอนุมัติเพื่อเข้าได้)`;
     }
   } else if (slots.length > 0) {
     // มี booking แต่ไม่ตรงฐานนี้
@@ -496,11 +496,11 @@ export async function processScan(qrData: string, staffSessionId: string): Promi
         endTime: nearestSlot.endTime.toISOString()
       };
     }
-    message = `⚠️ ผิดฐาน — ลงทะเบียนไว้ที่ "${nearestSlot?.activityName ?? 'ไม่ทราบ'}" ไม่ใช่ "${staffSession.activity.nameTh}"`;
+    message = `⚠️ ผิดฐาน — ลงทะเบียนไว้ที่ "${nearestSlot?.activityName ?? 'ไม่ทราบ'}" ไม่ใช่ "${staffSession.activity.nameTh}" (เจ้าหน้าที่สามารถกดอนุมัติเพื่อเข้าได้)`;
   } else {
     // ไม่มี booking เลย
     result = 'no_booking';
-    message = '❌ ไม่มีการจองกิจกรรมใดๆ';
+    message = '⚠️ ไม่มีการจองกิจกรรมใดๆ (เจ้าหน้าที่สามารถกดอนุมัติพิเศษเพื่อเข้าได้)';
   }
 
   // 8. สร้าง ScanLog (ทุก result รวม already_stamped → เก็บ audit trail)

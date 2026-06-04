@@ -402,16 +402,115 @@ async function submitWalkin() {
     closeModal();
     toast(`Walk-in registered: ${data.participant.firstName}`);
     if (data.qr?.dataUrl) {
-      openModal('QR Code', `<div style="text-align:center"><img src="${data.qr.dataUrl}" alt="QR" style="max-width:250px;margin:10px auto"><p class="mt-2">${esc(data.participant.firstName)} ${esc(data.participant.lastName)}</p></div>`);
+      const fullName = `${esc(data.participant.firstName)} ${esc(data.participant.lastName)}`;
+      const phone = esc(data.participant.phoneNumber || '');
+      openModal(
+        'QR Code',
+        `<div style="text-align:center">
+          <img src="${data.qr.dataUrl}" alt="QR" style="max-width:250px;margin:10px auto">
+          <p class="mt-2" style="font-size:16px;font-weight:bold">${fullName}</p>
+          <p class="text-muted text-sm">${phone}</p>
+        </div>`,
+        `<button class="btn btn-primary btn-sm" onclick="printQrCode('${data.qr.dataUrl}', '${fullName}', '${phone}')">
+          <i data-lucide="printer" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"></i> Print QR Code
+        </button>`
+      );
     }
   } catch (err) { toast(err.message, 'error'); }
+}
+
+// ─── Print QR Code Helper ────────────────────────────
+function printQrCode(qrDataUrl, name, details = '') {
+  const printWindow = window.open('', '_blank', 'width=600,height=600');
+  printWindow.document.write(`
+    <html>
+      <head>
+        <title>Print QR Code — ${name}</title>
+        <style>
+          body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            text-align: center;
+            padding: 40px;
+            color: #333;
+          }
+          .card {
+            border: 2px solid #ccc;
+            border-radius: 12px;
+            padding: 30px;
+            display: inline-block;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: #fff;
+          }
+          h2 {
+            margin: 0 0 10px 0;
+            font-size: 24px;
+            color: #1a3560;
+          }
+          p {
+            margin: 5px 0;
+            font-size: 14px;
+            color: #666;
+          }
+          img {
+            max-width: 300px;
+            height: auto;
+            margin: 20px 0;
+          }
+          .footer-text {
+            font-size: 11px;
+            color: #999;
+            margin-top: 15px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+          }
+          @media print {
+            body { padding: 0; }
+            .card { border: none; box-shadow: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h2>ROOTED 2026</h2>
+          <p><b>Participant Code / QR Pass</b></p>
+          <img src="${qrDataUrl}" alt="QR Code">
+          <p style="font-size: 18px; font-weight: bold; color: #000; margin: 10px 0;">
+            ${name}
+          </p>
+          ${details ? `<p>${details}</p>` : ''}
+          <div class="footer-text">
+            Thai Sustainable Culture Fest 2026
+          </div>
+        </div>
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() { window.close(); }, 500);
+          };
+        </script>
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
 }
 
 // ─── QR Regenerate ───────────────────────────────────
 async function regenQr(type, id) {
   try {
     const { data } = await api('POST', `/api/admin/qr/regenerate/${type}/${id}`);
-    openModal('Regenerated QR Code', `<div style="text-align:center"><img src="${data.dataUrl}" alt="QR" style="max-width:250px;margin:10px auto"><p class="mt-2"><strong>${esc(data.person?.name ?? '')}</strong></p><p class="text-muted text-sm">${esc(data.message)}</p></div>`);
+    const name = esc(data.person?.name ?? '');
+    const detail = esc(data.message);
+    openModal(
+      'QR Code Pass',
+      `<div style="text-align:center">
+        <img src="${data.dataUrl}" alt="QR" style="max-width:250px;margin:10px auto">
+        <p class="mt-2" style="font-size:16px;font-weight:bold"><strong>${name}</strong></p>
+        <p class="text-muted text-sm">${detail}</p>
+      </div>`,
+      `<button class="btn btn-primary btn-sm" onclick="printQrCode('${data.dataUrl}', '${name}', '${detail}')">
+        <i data-lucide="printer" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"></i> Print QR Code
+      </button>`
+    );
   } catch (err) { toast(err.message, 'error'); }
 }
 
